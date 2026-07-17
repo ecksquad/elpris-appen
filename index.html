@@ -447,17 +447,6 @@ function bestWindow(app){
 const krFmt = new Intl.NumberFormat('sv-SE',{minimumFractionDigits:2, maximumFractionDigits:2});
 function fmtKr(v){ return krFmt.format(v) + ' kr'; }
 
-/* trafikljus-hubben: under 100 öre visas "82 öre", från 100 öre "1kr 29öre"
-   (mindre font så det ryms i lampcirkeln) */
-function fmtHubPrice(sekPerKwh){
-  const ore = Math.round(sekPerKwh * 100);
-  if(ore >= 100){
-    const kr = Math.floor(ore / 100), rest = ore % 100;
-    return { text: rest ? `${kr}kr ${rest}öre` : `${kr}kr`, size: 11 };
-  }
-  return { text: `${ore.toLocaleString('sv-SE')} öre`, size: 13 };
-}
-
 function fmtOre(sekPerKwh){
   const ore = sekPerKwh * 100;
   const dec = Math.abs(ore) < 10 ? 1 : 0;
@@ -560,7 +549,7 @@ function render(){
           <line x1="100" y1="100" x2="${hx.toFixed(1)}" y2="${hy.toFixed(1)}" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
           <circle cx="100" cy="100" r="33" fill="${DCOL[curCls]}"/>
           <text x="100" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#121214">${DNAME[curCls]}</text>
-          <text x="100" y="103" text-anchor="middle" font-size="${fmtHubPrice(state.hourly[nIdx].price).size}" font-weight="700" fill="#121214" class="num">${fmtHubPrice(state.hourly[nIdx].price).text}</text>
+          <text x="100" y="103" text-anchor="middle" font-size="13" font-weight="700" fill="#121214" class="num">${(state.hourly[nIdx].price*100).toLocaleString('sv-SE',{maximumFractionDigits:0})} öre</text>
           <text x="100" y="115" text-anchor="middle" font-size="8" fill="#121214">${hubSub}</text>
           ${ticks}
         </svg>
