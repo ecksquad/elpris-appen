@@ -112,13 +112,16 @@
     font-size:13px;text-align:center;margin-top:4px;
   }
 
-  /* ---------- dagens kommentar ---------- */
-  .day-comment{
+  /* ---------- dagens kommentar + total besparing ---------- */
+  .day-comment, .total-saving{
     border-left:3px solid var(--dayclr, var(--accent));
-    display:flex;flex-direction:column;gap:4px;
+    display:flex;flex-direction:column;gap:6px;
   }
-  .day-comment-price{font-size:12px;color:var(--muted);letter-spacing:.2px}
-  .day-comment-text{font-size:15px;font-weight:500;text-wrap:balance}
+  .day-comment-text{font-size:24px;font-weight:500;text-wrap:balance}
+  .day-comment-text b{font-weight:700}
+  .day-comment-saving, .total-saving-amt{font-size:38px;font-weight:700;color:var(--accent);line-height:1.1}
+  .day-comment-note, .total-saving-note{font-size:11px;color:var(--muted);font-style:italic}
+  .total-saving-lead{font-size:16px;font-weight:500;text-wrap:balance}
 
   /* ---------- cards: 2 kolumner av kvadrater ---------- */
   .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -664,17 +667,38 @@ function render(){
       ${banner}
     </section>
     <section class="panel day-comment" style="--dayclr:${dayCommentColor}">
-      <p class="day-comment-price num">Pris idag: ${lowestOre}–${highestOre} öre</p>
-      <p class="day-comment-text">${commentText}</p>
+      <p class="day-comment-text"><b>Pris idag: ${lowestOre}–${highestOre} öre.</b> ${commentText}</p>
+      ${spreadOre >= 15 ? `
+      <p class="day-comment-saving num">Spara ${fmtKr(spreadOre/100)}/kWh</p>
+      <p class="day-comment-note">skillnad dyraste–billigaste timmen idag, ${TAX_NOTE}</p>` : ''}
     </section>`;
 
   /* --- apparatkort --- */
-  const cards = Object.entries(state.settings.appliances)
-    .filter(([,a]) => a.on)
-    .map(([id,a]) => renderCard(id, a, nIdx))
-    .join('');
+  const onApps = Object.entries(state.settings.appliances).filter(([,a]) => a.on);
+  const cards = onApps.map(([id,a]) => renderCard(id, a, nIdx)).join('');
 
-  $('#content').innerHTML = timeline + `<div class="cards">${cards}</div>`;
+  /* total besparing om ALLA valda apparater körs vid respektive
+     rekommenderad tid istället för direkt nu */
+  let totalSaving = 0;
+  onApps.forEach(([,a]) => {
+    const w = bestWindow(a);
+    if(w && w.nowCost != null){
+      const s = w.nowCost - w.best.cost;
+      if(s > 0.005) totalSaving += s;
+    }
+  });
+
+  const totalSavingBox = !onApps.length ? '' : (totalSaving > 0.005
+    ? `<section class="panel total-saving">
+        <p class="total-saving-lead">Kör ${onApps.length === 1 ? 'din valda apparat' : `dina ${onApps.length} valda apparater`} vid ${onApps.length === 1 ? 'rekommenderad tid' : 'de rekommenderade tiderna'} och spara totalt</p>
+        <p class="total-saving-amt num">${fmtKr(totalSaving)}</p>
+        <p class="total-saving-note">jämfört med att köra allt direkt nu, ${TAX_NOTE}</p>
+      </section>`
+    : `<section class="panel total-saving">
+        <p class="total-saving-lead">${onApps.length === 1 ? 'Din valda apparat körs' : 'Dina valda apparater körs'} redan bäst just nu – inget mer att spara.</p>
+      </section>`);
+
+  $('#content').innerHTML = timeline + totalSavingBox + `<div class="cards">${cards}</div>`;
 
   /* händelser */
   $('#dialSvg').addEventListener('click', e=>{
