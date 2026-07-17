@@ -227,7 +227,7 @@
 
 <footer>
   <span>Elpriser från <a href="https://www.elprisetjustnu.se" target="_blank" rel="noopener">elprisetjustnu.se</a></span>
-  <a class="donate" href="#" id="donateLink">♥ Stöd appen</a>
+  <a class="donate" href="https://ko-fi.com/ecksquad" target="_blank" rel="noopener">♥ Stöd appen</a>
 </footer>
 
 <!-- första körningen -->
@@ -285,7 +285,7 @@ const APP_DEFS = {
   dry:  {name:'Torktumlare',        icon:'🌀', h:2, kwh:2.5},
   ev:   {name:'Elbil',              icon:'🚗', h:6, kwh:66},   // 11 kW × 6 h
   phev: {name:'Laddhybrid',         icon:'🔌', h:3, kwh:11},   // 3,7 kW × 3 h
-  vvb:  {name:'Varmvattenberedare', icon:'🚿', h:3, kwh:9},
+  vvb:  {name:'Dusch',              icon:'🚿', h:3, kwh:9},
   sauna:{name:'Bastu',              icon:'🧖', h:2, kwh:12},
   pool: {name:'Poolpump',           icon:'🏊', h:6, kwh:4.5},
   spa:  {name:'Spabad',             icon:'🛁', h:4, kwh:8},
@@ -744,10 +744,6 @@ if('serviceWorker' in navigator){
 }
 
 $('#settingsBtn').addEventListener('click', showSettings);
-$('#donateLink').addEventListener('click', e=>{
-  e.preventDefault();
-  alert('Tack för att du vill stödja appen! Donationslänk kommer snart. ♥');
-});
 
 state.settings = loadSettings();
 if(!state.settings){
