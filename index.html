@@ -583,9 +583,9 @@ function render(){
       /* stroke i samma färg som fyllnaden + rundade hörn ("linejoin") mjukar
          upp de fyra spetsarna på varje tårtbit - ett vänligare, mindre
          tekniskt intryck utan att rita om hela sektorformen */
-      wedges += `<path class="wedge${sel}" data-i="${idx}" d="${wedgeD(a0,a1,58,86)}" fill="${col}" stroke="${col}" stroke-width="2.2" stroke-linejoin="round"/>`;
+      wedges += `<path class="wedge${sel}" data-i="${idx}" d="${wedgeD(a0,a1,58,86)}" fill="${col}" stroke="${col}" stroke-width="0.9" stroke-linejoin="round"/>`;
     }else{
-      wedges += `<path d="${wedgeD(a0,a1,58,86)}" fill="#232329" stroke="#232329" stroke-width="2.2" stroke-linejoin="round"/>`;
+      wedges += `<path d="${wedgeD(a0,a1,58,86)}" fill="#232329" stroke="#232329" stroke-width="0.9" stroke-linejoin="round"/>`;
     }
   }
 
