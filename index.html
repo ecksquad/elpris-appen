@@ -43,7 +43,6 @@
     --cheap:#3fae6a;
     --mid:#e0b23e;
     --dear:#d15050;
-    --priceblue:#5bc3e8;
     --radius:16px;
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -121,7 +120,9 @@
   .day-comment-text{font-size:24px;font-weight:500;text-wrap:balance}
   .day-comment-text b{font-weight:700}
   .total-saving-lead{font-size:16px;font-weight:500;text-wrap:balance;margin-top:4px}
-  .total-saving-amt{font-size:38px;font-weight:700;color:var(--priceblue);line-height:1.1}
+  .total-saving-amt{font-size:38px;font-weight:700;color:var(--cheap);line-height:1.1}
+  .total-saving-projection{font-size:15px;color:var(--text);text-wrap:balance}
+  .total-saving-projection b{color:var(--cheap);font-weight:700}
   .total-saving-note{font-size:11px;color:var(--muted);font-style:italic}
 
   /* ---------- cards: 2 kolumner av kvadrater ---------- */
@@ -641,6 +642,7 @@ function render(){
   const totalHtml = !onApps.length ? '' : (totalSaving > 0.005
     ? `<p class="total-saving-lead">Kör ${totalLead} vid ${totalTid} och spara totalt idag (välj dina apparater i inställningarna)</p>
        <p class="total-saving-amt num">${fmtKr(totalSaving)}</p>
+       <p class="total-saving-projection">Gör du så här varje dag i en månad har du <b>${fmtKr(totalSaving*30)}</b> extra att göra vad du vill med. Ett helt år av samma sak ger <b>${fmtKr(totalSaving*365)}</b> – nog för att äntligen unna dig den där drömmen!</p>
        <p class="total-saving-note">jämfört med att köra allt direkt nu, ${TAX_NOTE}</p>`
     : `<p class="total-saving-lead">${onApps.length === 1 ? 'Din valda apparat körs' : 'Dina valda apparater körs'} redan bäst just nu – inget mer att spara idag.</p>`);
 
