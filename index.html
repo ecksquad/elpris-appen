@@ -695,9 +695,9 @@ function render(){
          <span class="total-saving-amt num">${fmtKr(totalSavingIncl)}</span>
          <span class="total-saving-hint">(välj dina apparater i inställningarna)</span>
        </p>
-       <p class="total-saving-lead">Kör ${totalLead} vid ${totalTid}.</p>
        ${priceCommentHtml}
        <p class="total-saving-projection">Gör du så här varje dag i en månad har du <b>${fmtKr(totalSavingIncl*30)}</b> extra att göra vad du vill med. Ett helt år av samma sak ger <b>${fmtKr(totalSavingIncl*365)}</b> – nog för att äntligen unna dig den där drömmen!</p>
+       <p class="total-saving-lead">Kör ${totalLead} vid ${totalTid}.</p>
        <p class="total-saving-note">Inkl. moms. Nätavgift och energiskatt i ${zoneName} (snitt ca ${zoneOre} öre/kWh) tillkommer på hela din räkning, oavsett tid på dygnet.</p>`
     : (onApps.length
         ? `${priceCommentHtml}
