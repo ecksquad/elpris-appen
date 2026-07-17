@@ -579,9 +579,13 @@ function render(){
     const a0 = hourOfDay*15 + 0.9, a1 = hourOfDay*15 + 14.1;
     if(idx < state.hourly.length){
       const sel = state.selectedBar === idx ? ' sel' : '';
-      wedges += `<path class="wedge${sel}" data-i="${idx}" d="${wedgeD(a0,a1,58,86)}" fill="${wedgeCol(state.hourly[idx].price)}"/>`;
+      const col = wedgeCol(state.hourly[idx].price);
+      /* stroke i samma färg som fyllnaden + rundade hörn ("linejoin") mjukar
+         upp de fyra spetsarna på varje tårtbit - ett vänligare, mindre
+         tekniskt intryck utan att rita om hela sektorformen */
+      wedges += `<path class="wedge${sel}" data-i="${idx}" d="${wedgeD(a0,a1,58,86)}" fill="${col}" stroke="${col}" stroke-width="2.2" stroke-linejoin="round"/>`;
     }else{
-      wedges += `<path d="${wedgeD(a0,a1,58,86)}" fill="#232329"/>`;
+      wedges += `<path d="${wedgeD(a0,a1,58,86)}" fill="#232329" stroke="#232329" stroke-width="2.2" stroke-linejoin="round"/>`;
     }
   }
 
@@ -635,7 +639,7 @@ function render(){
   const totalLead = onApps.length === 1 ? 'din valda apparat' : `dina ${onApps.length} valda apparater`;
   const totalTid  = onApps.length === 1 ? 'rekommenderad tid' : 'de rekommenderade tiderna';
   const totalHtml = !onApps.length ? '' : (totalSaving > 0.005
-    ? `<p class="total-saving-lead">Kör ${totalLead} vid ${totalTid} och spara totalt idag</p>
+    ? `<p class="total-saving-lead">Kör ${totalLead} vid ${totalTid} och spara totalt idag (välj dina apparater i inställningarna)</p>
        <p class="total-saving-amt num">${fmtKr(totalSaving)}</p>
        <p class="total-saving-note">jämfört med att köra allt direkt nu, ${TAX_NOTE}</p>`
     : `<p class="total-saving-lead">${onApps.length === 1 ? 'Din valda apparat körs' : 'Dina valda apparater körs'} redan bäst just nu – inget mer att spara idag.</p>`);
