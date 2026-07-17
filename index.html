@@ -112,6 +112,14 @@
     font-size:13px;text-align:center;margin-top:4px;
   }
 
+  /* ---------- dagens kommentar ---------- */
+  .day-comment{
+    border-left:3px solid var(--dayclr, var(--accent));
+    display:flex;flex-direction:column;gap:4px;
+  }
+  .day-comment-price{font-size:12px;color:var(--muted);letter-spacing:.2px}
+  .day-comment-text{font-size:15px;font-weight:500;text-wrap:balance}
+
   /* ---------- cards: 2 kolumner av kvadrater ---------- */
   .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .card{
@@ -304,6 +312,38 @@
 const STORE_KEY = 'elprisAppen.v1';
 const TAX_NOTE  = 'exkl. skatter och avgifter';
 
+/* vänliga dagskommentarer under urtavlan - en uppsättning per lägesbedömning.
+   samma pris kan ge olika kommentar (roterar deterministiskt på dagens pris),
+   men bedömningen (billig/dyr/blandad) styr ALLTID vilken hylla den tas ifrån */
+const DAY_COMMENTS = {
+  cheap: [
+    'Grön dag – det spelar inte så stor roll när du kör igång.',
+    'Skön dag för plånboken, kör dina maskiner när det passar dig.',
+    'Billigt hela dagen – ingen brådska att vänta på något särskilt.',
+    'Lugn dag, det här. Sätt igång när du vill.',
+    'Ovanligt billigt idag – unna dig att inte tänka på det.'
+  ],
+  expensive: [
+    'Dyr dag tyvärr, inte mycket att välja på. Hoppas på mer blåst imorgon!',
+    'Tungt prisläge idag – håll tummarna för vind imorgon, då brukar det lätta.',
+    'Ingen rolig dag för elpriset. Vi får hoppas vinden tar fart till imorgon.',
+    'Dyrt hela dagen, svårt att komma undan. Blåsigare väder brukar sänka priset.',
+    'Få bra stunder idag – nästa lågtryck kan rädda plånboken imorgon.'
+  ],
+  mixed: [
+    'Stor prisskillnad idag – vänta definitivt till {tid}.',
+    'Idag lönar det sig att vänta, {tid} är klart billigast.',
+    'Här finns pengar att spara – kör igång {tid} istället.',
+    'Blandad dag, men det är värt att hålla ut till {tid}.',
+    'Stor skillnad mellan billigt och dyrt idag. Sikta på {tid}.'
+  ],
+  now: [
+    'Bästa läget är faktiskt redan nu – sätt igång!',
+    'Just nu är det som billigast idag, passa på.',
+    'Det blir inte bättre än så här idag – kör igång nu.'
+  ]
+};
+
 const ZONES = {
   SE1:'Norra Sverige', SE2:'Norra Mellansverige',
   SE3:'Södra Mellansverige', SE4:'Södra Sverige'
@@ -461,6 +501,14 @@ function fmtClock(d){
   return d.toLocaleTimeString('sv-SE',{hour:'2-digit', minute:'2-digit'});
 }
 
+/* väljer en kommentar ur listan utifrån dagens faktiska priser, så samma
+   prisbild alltid ger samma kommentar (ingen flimrande slump varje minut)
+   men olika dagar/priser ger omväxling - "matchar priset" utan att vara statisk */
+function pickComment(list, seed){
+  const h = (Math.imul(seed | 0, 2654435761) >>> 0) % list.length;
+  return list[h];
+}
+
 function whenLabel(d){
   const today = new Date(); today.setHours(0,0,0,0);
   const day = new Date(d);  day.setHours(0,0,0,0);
@@ -493,14 +541,24 @@ function render(){
   const cls = p => Math.round(p*100) <= 50 ? 'cheap' : Math.round(p*100) <= 99 ? 'mid' : 'dear';
   const DCOL  = {cheap:'#3fae6a', mid:'#e0b23e', dear:'#d15050'};
   const DNAME = {cheap:'GRÖNT', mid:'GULT', dear:'RÖTT'};
-  /* ringens tårtbitar: klassens sektion behålls men tonen glider inom
-     klassen (prisskillnaden inom en och samma färg kan vara stor) */
+  /* ringens tårtbitar: HELA grönt-till-rött-skalan används för just DEN HÄR
+     dagens spann, så den billigaste timmen alltid är grönast och den
+     dyraste alltid rödast - oavsett vilken absolut prisnivå dagen ligger på.
+     Navets fasta klasser (cls/DCOL ovan) är oförändrade och visar det
+     FAKTISKA priset i kr; ringen visar bara var på dagen det är bäst/sämst. */
+  const winOre = win.map(h => Math.round(h.price*100));
+  const lowestOre = Math.min(...winOre), highestOre = Math.max(...winOre);
+  const spreadOre = highestOre - lowestOre;
   const lerp = (a,b,t) => a + (b-a)*Math.max(0, Math.min(1, t));
+  const dayRamp = t => {
+    if(t <= 0.30) return `hsl(${lerp(150,95,t/0.30).toFixed(0)},58%,${lerp(38,50,t/0.30).toFixed(0)}%)`;         /* djupgrönt → gulgrönt */
+    if(t <= 0.55) return `hsl(${lerp(60,32,(t-0.30)/0.25).toFixed(0)},75%,52%)`;                                  /* gult → orange */
+    return `hsl(${lerp(16,0,(t-0.55)/0.45).toFixed(0)},72%,${lerp(52,32,(t-0.55)/0.45).toFixed(0)}%)`;            /* orangerött → mörkrött */
+  };
   const wedgeCol = p => {
-    const o = p*100;
-    if(o <= 50) return `hsl(${lerp(150,95,o/50).toFixed(0)},55%,${lerp(40,50,o/50).toFixed(0)}%)`;      /* djupgrönt → gulgrönt */
-    if(o <= 99) return `hsl(${lerp(52,36,(o-51)/48).toFixed(0)},80%,54%)`;                              /* gult → orange */
-    return `hsl(${lerp(14,0,(o-100)/100).toFixed(0)},72%,${lerp(52,38,(o-100)/150).toFixed(0)}%)`;      /* orangerött → mörkrött */
+    const o = Math.round(p*100);
+    const t = spreadOre > 0 ? (o - lowestOre) / spreadOre : 0.15; /* helt jämn dag -> mjukt grön ton */
+    return dayRamp(t);
   };
 
   const arcP = (r,a)=>{ a=(a-90)*Math.PI/180; return [100+r*Math.cos(a), 100+r*Math.sin(a)]; };
@@ -532,6 +590,31 @@ function render(){
   for(let k=1;k<win.length;k++){ if(cls(win[k].price)==='cheap'){ till = k; break; } }
   const hubSub = curCls==='cheap' ? 'läge att köra'
     : (till ? `grönt om ${till} h` : 'inga gröna timmar');
+
+  /* dagens vänliga kommentar: bygger på det FAKTISKA prisläget (fasta
+     öre-klasser), inte den relativa ringfärgen ovan - annars skulle en dyr
+     dag med liten spridning kunna felaktigt kallas "blandad" */
+  let dayCls;
+  if(highestOre <= 50) dayCls = 'cheap';               // hela dagen billig
+  else if(lowestOre >= 100) dayCls = 'expensive';      // hela dagen dyr
+  else if(spreadOre < 15) dayCls = (highestOre <= 75) ? 'cheap' : 'expensive'; // jämn dag, ingen vinst i att vänta
+  else dayCls = 'mixed';
+
+  const commentSeed = lowestOre * 97 + highestOre * 13 + nIdx;
+  let commentText;
+  if(dayCls === 'mixed'){
+    let bestK = 0;
+    for(let k=1;k<win.length;k++){ if(win[k].price < win[bestK].price) bestK = k; }
+    if(bestK === 0){
+      commentText = pickComment(DAY_COMMENTS.now, commentSeed);
+    }else{
+      const tid = whenLabel(win[bestK].start);
+      commentText = pickComment(DAY_COMMENTS.mixed, commentSeed).replace('{tid}', tid);
+    }
+  }else{
+    commentText = pickComment(DAY_COMMENTS[dayCls], commentSeed);
+  }
+  const dayCommentColor = {cheap:'var(--cheap)', expensive:'var(--dear)', mixed:'var(--mid)'}[dayCls];
 
   /* 00/06/12/18 rakt upp/höger/ner/vänster som en klocka, inte mitt i sektionerna */
   const ticks = [0,6,12,18].map(t=>{
@@ -579,6 +662,10 @@ function render(){
         <span class="tax-note">${TAX_NOTE}</span>
       </div>
       ${banner}
+    </section>
+    <section class="panel day-comment" style="--dayclr:${dayCommentColor}">
+      <p class="day-comment-price num">Pris idag: ${lowestOre}–${highestOre} öre</p>
+      <p class="day-comment-text">${commentText}</p>
     </section>`;
 
   /* --- apparatkort --- */
