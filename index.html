@@ -107,6 +107,10 @@
     font-size:12px;color:var(--muted);background:var(--card-2);
     border-radius:10px;padding:7px 10px;margin-top:10px;
   }
+  .banner.warn{
+    background:rgba(209,80,80,.16);color:#ea8f8f;font-weight:600;
+    font-size:13px;text-align:center;margin-top:4px;
+  }
 
   /* ---------- cards: 2 kolumner av kvadrater ---------- */
   .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -485,12 +489,19 @@ function render(){
   /* --- urtavla: kommande 24 h, trafikljus i navet --- */
   const winEnd = Math.min(nIdx + 24, state.hourly.length);
   const win = state.hourly.slice(nIdx, winEnd);
-  const wp = win.map(h=>h.price).sort((a,b)=>a-b);
-  const t1 = wp[Math.floor(wp.length/3)];
-  const t2 = wp[Math.floor(wp.length*2/3)];
-  const cls = p => p < t1 ? 'cheap' : p < t2 ? 'mid' : 'dear';
+  /* fasta prisklasser (öre/kWh): 0–50 grönt, 51–99 gult, 100+ rött */
+  const cls = p => Math.round(p*100) <= 50 ? 'cheap' : Math.round(p*100) <= 99 ? 'mid' : 'dear';
   const DCOL  = {cheap:'#3fae6a', mid:'#e0b23e', dear:'#d15050'};
   const DNAME = {cheap:'GRÖNT', mid:'GULT', dear:'RÖTT'};
+  /* ringens tårtbitar: klassens sektion behålls men tonen glider inom
+     klassen (prisskillnaden inom en och samma färg kan vara stor) */
+  const lerp = (a,b,t) => a + (b-a)*Math.max(0, Math.min(1, t));
+  const wedgeCol = p => {
+    const o = p*100;
+    if(o <= 50) return `hsl(${lerp(150,95,o/50).toFixed(0)},55%,${lerp(40,50,o/50).toFixed(0)}%)`;      /* djupgrönt → gulgrönt */
+    if(o <= 99) return `hsl(${lerp(52,36,(o-51)/48).toFixed(0)},80%,54%)`;                              /* gult → orange */
+    return `hsl(${lerp(14,0,(o-100)/100).toFixed(0)},72%,${lerp(52,38,(o-100)/150).toFixed(0)}%)`;      /* orangerött → mörkrött */
+  };
 
   const arcP = (r,a)=>{ a=(a-90)*Math.PI/180; return [100+r*Math.cos(a), 100+r*Math.sin(a)]; };
   const wedgeD = (a0,a1,r1,r2)=>{
@@ -506,7 +517,7 @@ function render(){
     const a0 = hourOfDay*15 + 0.9, a1 = hourOfDay*15 + 14.1;
     if(idx < state.hourly.length){
       const sel = state.selectedBar === idx ? ' sel' : '';
-      wedges += `<path class="wedge${sel}" data-i="${idx}" d="${wedgeD(a0,a1,58,86)}" fill="${DCOL[cls(state.hourly[idx].price)]}"/>`;
+      wedges += `<path class="wedge${sel}" data-i="${idx}" d="${wedgeD(a0,a1,58,86)}" fill="${wedgeCol(state.hourly[idx].price)}"/>`;
     }else{
       wedges += `<path d="${wedgeD(a0,a1,58,86)}" fill="#232329"/>`;
     }
@@ -522,8 +533,9 @@ function render(){
   const hubSub = curCls==='cheap' ? 'läge att köra'
     : (till ? `grönt om ${till} h` : 'inga gröna timmar');
 
+  /* 00/06/12/18 rakt upp/höger/ner/vänster som en klocka, inte mitt i sektionerna */
   const ticks = [0,6,12,18].map(t=>{
-    const [tx,ty] = arcP(94, t*15+7.5);
+    const [tx,ty] = arcP(94, t*15);
     return `<text x="${tx.toFixed(1)}" y="${(ty+3).toFixed(1)}" text-anchor="middle" font-size="9" fill="#9a968f">${String(t).padStart(2,'0')}</text>`;
   }).join('');
 
@@ -536,6 +548,10 @@ function render(){
 
   const banner = !state.hasTomorrow
     ? `<div class="banner">Morgondagens priser publiceras ca kl 13.</div>` : '';
+
+  /* varning vid riktigt högt pris just nu (>170 öre) */
+  const warnBanner = state.hourly[nIdx].price*100 > 170
+    ? `<div class="banner warn">&#9888;&#65039; Mycket högt elpris just nu: ${fmtOre(state.hourly[nIdx].price)}</div>` : '';
 
   const timeline = `
     <section class="panel">
@@ -554,11 +570,12 @@ function render(){
           ${ticks}
         </svg>
       </div>
+      ${warnBanner}
       <div class="tl-info" id="tlInfo">${selInfo}</div>
       <div class="legend">
-        <span><i style="background:var(--cheap)"></i>Billigast</span>
-        <span><i style="background:var(--mid)"></i>Medel</span>
-        <span><i style="background:var(--dear)"></i>Dyrast</span>
+        <span><i style="background:var(--cheap)"></i>0–50 öre</span>
+        <span><i style="background:var(--mid)"></i>51–99 öre</span>
+        <span><i style="background:var(--dear)"></i>100+ öre</span>
         <span class="tax-note">${TAX_NOTE}</span>
       </div>
       ${banner}
