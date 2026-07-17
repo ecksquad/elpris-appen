@@ -180,16 +180,18 @@
   .btn:active{transform:scale(.98)}
   .btn.ghost{background:var(--card-2);color:var(--muted);margin-top:8px}
   .set-row{
-    display:flex;align-items:center;gap:10px;background:var(--card-2);
-    border-radius:12px;padding:10px 12px;margin-bottom:8px;
+    display:grid;grid-template-columns:auto 1fr auto;gap:8px 10px;align-items:center;
+    background:var(--card-2);border-radius:12px;padding:10px 12px;margin-bottom:8px;
   }
   .set-row .si{font-size:20px}
-  .set-row .sn{flex:1;font-size:13px;font-weight:500}
+  .set-row .sn{font-size:13px;font-weight:500}
+  .set-row .inputs{grid-column:1 / -1;display:flex;gap:8px}
+  .set-row .inputs>span{flex:1}
   .set-row label{font-size:10px;color:var(--muted);display:block;text-align:center}
   .set-row input[type=number]{
-    width:56px;background:var(--card);border:1px solid var(--line);color:var(--text);
-    border-radius:8px;padding:5px 6px;font-family:'Barlow Condensed',sans-serif;
-    font-size:16px;text-align:center;
+    width:100%;background:var(--card);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:5px 4px;font-family:'Barlow Condensed',sans-serif;
+    font-size:16px;text-align:center;box-sizing:border-box;
   }
   .set-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
 
@@ -285,7 +287,7 @@ const APP_DEFS = {
   dry:  {name:'Torktumlare',        icon:'🌀', h:2, kwh:2.5},
   ev:   {name:'Elbil',              icon:'🚗', h:6, kwh:66},   // 11 kW × 6 h
   phev: {name:'Laddhybrid',         icon:'🔌', h:3, kwh:11},   // 3,7 kW × 3 h
-  vvb:  {name:'Dusch',              icon:'🚿', h:3, kwh:9},
+  vvb:  {name:'Dusch',              icon:'🚿', h:3, kwh:9, from:6, to:22, verb:'Bäst att duscha'},
   sauna:{name:'Bastu',              icon:'🧖', h:2, kwh:12},
   pool: {name:'Poolpump',           icon:'🏊', h:6, kwh:4.5},
   spa:  {name:'Spabad',             icon:'🛁', h:4, kwh:8},
@@ -304,7 +306,7 @@ const state = {
 function defaultSettings(){
   const appliances = {};
   for(const [id,d] of Object.entries(APP_DEFS)){
-    appliances[id] = {on: ['dish','wash','dry'].includes(id), h:d.h, kwh:d.kwh};
+    appliances[id] = {on: ['dish','wash','dry'].includes(id), h:d.h, kwh:d.kwh, from:d.from ?? 0, to:d.to ?? 24};
   }
   return {zone:'SE3', appliances};
 }
@@ -315,10 +317,13 @@ function loadSettings(){
     if(!raw) return null;
     const s = JSON.parse(raw);
     if(!ZONES[s.zone]) return null;
-    // fyll ev. nya apparater med defaultvärden
+    // fyll ev. nya apparater och nya fält med defaultvärden
     const def = defaultSettings();
     for(const id of Object.keys(APP_DEFS)){
       if(!s.appliances[id]) s.appliances[id] = def.appliances[id];
+      const ap = s.appliances[id];
+      if(ap.from == null) ap.from = def.appliances[id].from;
+      if(ap.to   == null) ap.to   = def.appliances[id].to;
     }
     return s;
   }catch(e){ return null; }
@@ -378,7 +383,8 @@ function nowIndex(){
   return state.hourly.findIndex(h => h.start.getTime() <= now && now < h.end.getTime());
 }
 
-/* billigaste sammanhängande fönster inom kommande 36 h */
+/* billigaste sammanhängande fönster inom kommande 36 h,
+   med hänsyn till tillåten starttid (from–to, kan gå över midnatt) */
 function bestWindow(app){
   const hours = state.hourly;
   const D = Math.max(1, Math.round(app.h));
@@ -386,6 +392,13 @@ function bestWindow(app){
   const nIdx = nowIndex();
   if(nIdx < 0) return null;
   const limit = Date.now() + 36*36e5;
+
+  const f = app.from ?? 0, t = app.to ?? 24;
+  const okStart = i => {
+    if(f === t || (f === 0 && t === 24)) return true;
+    const h = hours[i].start.getHours();
+    return f < t ? (h >= f && h < t) : (h >= f || h < t);
+  };
 
   const costAt = i => {
     let c = 0;
@@ -395,6 +408,7 @@ function bestWindow(app){
 
   let best = null;
   for(let i=nIdx; i+D <= hours.length && hours[i].start.getTime() <= limit; i++){
+    if(!okStart(i)) continue;
     const c = costAt(i);
     if(!best || c < best.cost) best = {i, cost:c};
   }
@@ -559,7 +573,7 @@ function renderCard(id, a, nIdx){
       <div class="card-icon">${def.icon}</div>
       <div class="card-name">${def.name}</div>
       <div class="card-big">–</div>
-      <div class="card-name">ingen prisdata</div>
+      <div class="card-name">inget fönster i vald tid</div>
     </div></div>`;
   }
 
@@ -608,7 +622,7 @@ function renderCard(id, a, nIdx){
     <div class="card-face">
       <div class="card-icon">${def.icon}</div>
       <div class="card-name">${def.name}</div>
-      <div class="card-label">Bäst start</div>
+      <div class="card-label">${def.verb || 'Bäst start'}</div>
       <div class="card-big num">${big}</div>
       <div class="card-sub2 num">${sub}</div>
     </div>
@@ -670,20 +684,29 @@ function showSettings(){
     <div class="set-row" data-id="${id}">
       <span class="si">${d.icon}</span>
       <span class="sn">${d.name}</span>
-      <span><label>timmar</label>
-        <input type="number" class="in-h" min="1" max="12" step="1" value="${a.h}"></span>
-      <span><label>kWh</label>
-        <input type="number" class="in-kwh" min="0.1" max="200" step="0.1" value="${a.kwh}"></span>
       <input type="checkbox" class="in-on" ${a.on?'checked':''}>
+      <span class="inputs">
+        <span><label>timmar</label>
+          <input type="number" class="in-h" min="1" max="12" step="1" value="${a.h}"></span>
+        <span><label>kWh</label>
+          <input type="number" class="in-kwh" min="0.1" max="200" step="0.1" value="${a.kwh}"></span>
+        <span><label>från kl</label>
+          <input type="number" class="in-from" min="0" max="23" step="1" value="${a.from}"></span>
+        <span><label>till kl</label>
+          <input type="number" class="in-to" min="1" max="24" step="1" value="${a.to}"></span>
+      </span>
     </div>`;
   }).join('');
 
   $('#settingsSave').onclick = ()=>{
     document.querySelectorAll('#settingsApps .set-row').forEach(row=>{
       const a = draft.appliances[row.dataset.id];
-      a.on  = row.querySelector('.in-on').checked;
-      a.h   = Math.min(12, Math.max(1, Math.round(+row.querySelector('.in-h').value || a.h)));
-      a.kwh = Math.min(200, Math.max(0.1, +row.querySelector('.in-kwh').value || a.kwh));
+      a.on   = row.querySelector('.in-on').checked;
+      a.h    = Math.min(12, Math.max(1, Math.round(+row.querySelector('.in-h').value || a.h)));
+      a.kwh  = Math.min(200, Math.max(0.1, +row.querySelector('.in-kwh').value || a.kwh));
+      const fs = row.querySelector('.in-from').value, ts = row.querySelector('.in-to').value;
+      if(fs !== '' && Number.isFinite(+fs)) a.from = Math.min(23, Math.max(0, Math.round(+fs)));
+      if(ts !== '' && Number.isFinite(+ts)) a.to   = Math.min(24, Math.max(1, Math.round(+ts)));
     });
     const zoneChanged = draft.zone !== state.settings.zone;
     state.settings = draft;
