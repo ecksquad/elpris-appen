@@ -60,36 +60,10 @@
   .panel-head{display:flex;align-items:baseline;gap:8px;margin-bottom:10px}
   .panel-head h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
   .updated{margin-left:auto;font-size:11px;color:var(--muted)}
-  .tl-wrap{position:relative;padding-top:6px}
-  .tl-bars{display:flex;align-items:flex-end;gap:1px;height:78px}
-  .tl-bars .bar{
-    flex:1;min-width:2px;border-radius:2px 2px 0 0;cursor:pointer;
-    transition:opacity .15s;
-  }
-  .bar.cheap{background:var(--cheap)}
-  .bar.mid{background:var(--mid)}
-  .bar.dear{background:var(--dear)}
-  .bar.past{opacity:.28}
-  .bar.sel{outline:2px solid var(--text);outline-offset:1px}
-  .tl-now{
-    position:absolute;top:0;bottom:18px;width:2px;background:var(--accent);
-    border-radius:2px;pointer-events:none;z-index:2;
-  }
-  .tl-now::before{
-    content:"NU";position:absolute;top:-6px;left:50%;transform:translate(-50%,-100%);
-    font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;
-    letter-spacing:1px;color:var(--accent);
-  }
-  .tl-labels{display:flex;gap:1px;margin-top:4px}
-  .tl-labels div{
-    flex:1;min-width:2px;font-family:'Barlow Condensed',sans-serif;
-    font-size:10px;color:var(--muted);overflow:visible;white-space:nowrap;
-  }
-  .tl-days{display:flex;margin-top:2px}
-  .tl-days div{
-    font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
-    color:var(--muted);text-align:center;border-top:1px solid var(--line);padding-top:3px;
-  }
+  .dial-wrap{display:flex;justify-content:center;padding:4px 0}
+  .dial-wrap svg{max-width:100%;height:auto}
+  .dial-wrap .wedge{cursor:pointer}
+  .dial-wrap .wedge.sel{stroke:var(--text);stroke-width:2}
   .tl-info{
     margin-top:10px;min-height:22px;font-size:13px;color:var(--muted);
     display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;
@@ -103,29 +77,30 @@
     border-radius:10px;padding:7px 10px;margin-top:10px;
   }
 
-  /* ---------- cards ---------- */
-  .cards{display:flex;flex-direction:column;gap:10px}
+  /* ---------- cards: 2 kolumner av kvadrater ---------- */
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .card{
     background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-    padding:14px;cursor:pointer;transition:border-color .15s;
+    padding:12px;cursor:pointer;transition:border-color .15s;aspect-ratio:1;min-width:0;
   }
   .card:active{border-color:var(--accent)}
-  .card-top{display:flex;align-items:center;gap:12px}
-  .card-icon{
-    font-size:22px;width:46px;height:46px;border-radius:14px;
-    background:var(--card-2);display:grid;place-items:center;flex-shrink:0;
+  .card.open{grid-column:1 / -1;aspect-ratio:auto}
+  .card-face{
+    height:100%;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;text-align:center;gap:2px;
   }
-  .card-main{flex:1;min-width:0}
-  .card-name{font-size:12px;font-weight:500;color:var(--muted);letter-spacing:.3px}
-  .card-headline{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:600;line-height:1.15}
-  .card-headline .ok{color:var(--cheap)}
-  .card-sub{font-size:12px;color:var(--muted)}
-  .card-sub b{color:var(--cheap);font-weight:600}
-  .card-save{
-    text-align:right;flex-shrink:0;
+  .card.open .card-face{height:auto}
+  .card-icon{font-size:30px;line-height:1.2}
+  .card-name{font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.3px}
+  .card-label{
+    font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;
+    color:var(--muted);margin-top:8px;
   }
-  .card-save .kr{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;color:var(--cheap)}
-  .card-save .lbl{font-size:10px;color:var(--muted)}
+  .card-big{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:700;line-height:1.05}
+  .card-big .oknow{color:var(--cheap)}
+  .card-big .day{display:block;font-size:11px;font-weight:400;color:var(--muted);letter-spacing:.5px}
+  .card-sub2{font-size:14px;font-weight:600;color:var(--cheap)}
+  .card-sub2 .cost{display:block;font-size:11px;font-weight:400;color:var(--muted)}
   .card-detail{
     display:none;margin-top:12px;border-top:1px solid var(--line);padding-top:12px;
   }
@@ -279,10 +254,16 @@ const ZONES = {
 };
 
 const APP_DEFS = {
-  dish:{name:'Diskmaskin',     icon:'🍽️', h:2, kwh:1.2},
-  wash:{name:'Tvättmaskin',    icon:'👕', h:3, kwh:1.0},
-  dry: {name:'Torktumlare',    icon:'🌀', h:2, kwh:2.5},
-  ev:  {name:'Elbilsladdning', icon:'🚗', h:6, kwh:66}   // 11 kW × 6 h
+  dish: {name:'Diskmaskin',         icon:'🍽️', h:2, kwh:1.2},
+  wash: {name:'Tvättmaskin',        icon:'👕', h:3, kwh:1.0},
+  dry:  {name:'Torktumlare',        icon:'🌀', h:2, kwh:2.5},
+  ev:   {name:'Elbil',              icon:'🚗', h:6, kwh:66},   // 11 kW × 6 h
+  phev: {name:'Laddhybrid',         icon:'🔌', h:3, kwh:11},   // 3,7 kW × 3 h
+  vvb:  {name:'Varmvattenberedare', icon:'🚿', h:3, kwh:9},
+  sauna:{name:'Bastu',              icon:'🧖', h:2, kwh:12},
+  pool: {name:'Poolpump',           icon:'🏊', h:6, kwh:4.5},
+  spa:  {name:'Spabad',             icon:'🛁', h:4, kwh:8},
+  floor:{name:'Golvvärme (boost)',  icon:'🔥', h:4, kwh:6}
 };
 
 const state = {
@@ -297,7 +278,7 @@ const state = {
 function defaultSettings(){
   const appliances = {};
   for(const [id,d] of Object.entries(APP_DEFS)){
-    appliances[id] = {on: id!=='ev', h:d.h, kwh:d.kwh};
+    appliances[id] = {on: ['dish','wash','dry'].includes(id), h:d.h, kwh:d.kwh};
   }
   return {zone:'SE3', appliances};
 }
@@ -436,43 +417,58 @@ function render(){
   }
 
   const nIdx = nowIndex();
-  const prices = state.hourly.map(h=>h.price);
-  const sorted = [...prices].sort((a,b)=>a-b);
-  const t1 = sorted[Math.floor(sorted.length/3)];
-  const t2 = sorted[Math.floor(sorted.length*2/3)];
+
+  /* --- urtavla: kommande 24 h, trafikljus i navet --- */
+  const winEnd = Math.min(nIdx + 24, state.hourly.length);
+  const win = state.hourly.slice(nIdx, winEnd);
+  const wp = win.map(h=>h.price).sort((a,b)=>a-b);
+  const t1 = wp[Math.floor(wp.length/3)];
+  const t2 = wp[Math.floor(wp.length*2/3)];
   const cls = p => p < t1 ? 'cheap' : p < t2 ? 'mid' : 'dear';
-  const min = sorted[0], max = sorted[sorted.length-1];
-  const span = (max - min) || 1;
+  const DCOL  = {cheap:'#3fae6a', mid:'#e0b23e', dear:'#d15050'};
+  const DNAME = {cheap:'GRÖNT', mid:'GULT', dear:'RÖTT'};
 
-  /* --- tidslinje --- */
-  const now = Date.now();
-  const bars = state.hourly.map((h,i)=>{
-    const hPct = 25 + 75 * (h.price - min) / span;
-    const past = h.end.getTime() <= now ? ' past' : '';
-    const sel  = state.selectedBar === i ? ' sel' : '';
-    return `<div class="bar ${cls(h.price)}${past}${sel}" style="height:${hPct.toFixed(1)}%" data-i="${i}"></div>`;
+  const arcP = (r,a)=>{ a=(a-90)*Math.PI/180; return [100+r*Math.cos(a), 100+r*Math.sin(a)]; };
+  const wedgeD = (a0,a1,r1,r2)=>{
+    const [x0,y0]=arcP(r2,a0),[x1,y1]=arcP(r2,a1),[x2,y2]=arcP(r1,a1),[x3,y3]=arcP(r1,a0);
+    return `M${x0.toFixed(1)},${y0.toFixed(1)}A${r2},${r2} 0 0 1 ${x1.toFixed(1)},${y1.toFixed(1)}L${x2.toFixed(1)},${y2.toFixed(1)}A${r1},${r1} 0 0 0 ${x3.toFixed(1)},${y3.toFixed(1)}Z`;
+  };
+
+  let wedges = '';
+  const baseHour = state.hourly[nIdx].start.getHours();
+  for(let k=0;k<24;k++){
+    const idx = nIdx + k;
+    const hourOfDay = (baseHour + k) % 24;
+    const a0 = hourOfDay*15 + 0.9, a1 = hourOfDay*15 + 14.1;
+    if(idx < state.hourly.length){
+      const sel = state.selectedBar === idx ? ' sel' : '';
+      wedges += `<path class="wedge${sel}" data-i="${idx}" d="${wedgeD(a0,a1,58,86)}" fill="${DCOL[cls(state.hourly[idx].price)]}"/>`;
+    }else{
+      wedges += `<path d="${wedgeD(a0,a1,58,86)}" fill="#232329"/>`;
+    }
+  }
+
+  const nd = new Date();
+  const handA = (nd.getHours() + nd.getMinutes()/60) * 15;
+  const [hx,hy] = arcP(54, handA);
+
+  const curCls = cls(state.hourly[nIdx].price);
+  let till = null;
+  for(let k=1;k<win.length;k++){ if(cls(win[k].price)==='cheap'){ till = k; break; } }
+  const hubSub = curCls==='cheap' ? 'läge att köra'
+    : (till ? `grönt om ${till} h` : 'inga gröna timmar');
+
+  const ticks = [0,6,12,18].map(t=>{
+    const [tx,ty] = arcP(94, t*15+7.5);
+    return `<text x="${tx.toFixed(1)}" y="${(ty+3).toFixed(1)}" text-anchor="middle" font-size="9" fill="#9a968f">${String(t).padStart(2,'0')}</text>`;
   }).join('');
-
-  const labels = state.hourly.map(h=>{
-    const hr = h.start.getHours();
-    return `<div>${hr % 6 === 0 ? String(hr).padStart(2,'0') : ''}</div>`;
-  }).join('');
-
-  const t0 = state.hourly[0].start.getTime();
-  const tEnd = state.hourly[state.hourly.length-1].end.getTime();
-  const nowPct = Math.min(100, Math.max(0, (now - t0) / (tEnd - t0) * 100));
-
-  const todayHours = state.hourly.filter(h => h.start.getDate() === new Date().getDate()).length;
-  const tomorrowHours = state.hourly.length - todayHours;
-  let dayRow = `<div style="flex:${todayHours}">Idag</div>`;
-  if(tomorrowHours > 0) dayRow += `<div style="flex:${tomorrowHours}">Imorgon</div>`;
 
   const selInfo = state.selectedBar != null && state.hourly[state.selectedBar]
     ? (()=>{ const h = state.hourly[state.selectedBar];
         return `<span>${whenLabel(h.start)}–${fmtClock(h.end)}</span>
                 <span class="price">${fmtOre(h.price)}</span>
                 <span style="font-size:10px;font-style:italic">${TAX_NOTE}</span>`; })()
-    : `<span>Tryck på en stapel för timpris</span>`;
+    : `<span>Tryck på en timme i ringen för pris</span>`;
 
   const banner = !state.hasTomorrow
     ? `<div class="banner">Morgondagens priser publiceras ca kl 13.</div>` : '';
@@ -480,14 +476,18 @@ function render(){
   const timeline = `
     <section class="panel">
       <div class="panel-head">
-        <h2>Elpriset nu &amp; framåt</h2>
+        <h2>Kommande 24 timmar</h2>
         <span class="updated num">uppdaterad ${fmtClock(new Date(state.lastFetch))}</span>
       </div>
-      <div class="tl-wrap">
-        <div class="tl-bars" id="tlBars">${bars}</div>
-        <div class="tl-now" style="left:${nowPct.toFixed(2)}%"></div>
-        <div class="tl-labels">${labels}</div>
-        <div class="tl-days">${dayRow}</div>
+      <div class="dial-wrap">
+        <svg id="dialSvg" viewBox="0 0 200 200" width="250" role="img" aria-label="Elpriset kommande 24 timmar">
+          ${wedges}
+          <line x1="100" y1="100" x2="${hx.toFixed(1)}" y2="${hy.toFixed(1)}" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="100" cy="100" r="33" fill="${DCOL[curCls]}"/>
+          <text x="100" y="97" text-anchor="middle" font-size="14" font-weight="700" fill="#121214">${DNAME[curCls]}</text>
+          <text x="100" y="111" text-anchor="middle" font-size="8.5" fill="#121214">${hubSub}</text>
+          ${ticks}
+        </svg>
       </div>
       <div class="tl-info" id="tlInfo">${selInfo}</div>
       <div class="legend">
@@ -508,10 +508,10 @@ function render(){
   $('#content').innerHTML = timeline + `<div class="cards">${cards}</div>`;
 
   /* händelser */
-  $('#tlBars').addEventListener('click', e=>{
-    const b = e.target.closest('.bar');
-    if(!b) return;
-    state.selectedBar = state.selectedBar === +b.dataset.i ? null : +b.dataset.i;
+  $('#dialSvg').addEventListener('click', e=>{
+    const p = e.target.closest('.wedge');
+    if(!p) return;
+    state.selectedBar = state.selectedBar === +p.dataset.i ? null : +p.dataset.i;
     render();
   });
   document.querySelectorAll('.card').forEach(c=>{
@@ -528,37 +528,29 @@ function renderCard(id, a, nIdx){
   const open = state.openCard === id ? ' open' : '';
 
   if(!w){
-    return `<div class="card${open}" data-app="${id}">
-      <div class="card-top">
-        <div class="card-icon">${def.icon}</div>
-        <div class="card-main">
-          <div class="card-name">${def.name}</div>
-          <div class="card-headline">Ingen prisdata</div>
-        </div>
-      </div></div>`;
+    return `<div class="card${open}" data-app="${id}"><div class="card-face">
+      <div class="card-icon">${def.icon}</div>
+      <div class="card-name">${def.name}</div>
+      <div class="card-big">–</div>
+      <div class="card-name">ingen prisdata</div>
+    </div></div>`;
   }
 
   const {best, nowCost, D} = w;
-  const startH   = state.hourly[best.i];
-  const isNow    = best.i === nIdx;
-  const saving   = nowCost != null ? nowCost - best.cost : null;
-  const meta     = id === 'ev'
-    ? `${(a.kwh/D).toLocaleString('sv-SE',{maximumFractionDigits:1})} kW · ${D} h · ${a.kwh.toLocaleString('sv-SE')} kWh`
-    : `${D} h · ${a.kwh.toLocaleString('sv-SE')} kWh`;
+  const startH = state.hourly[best.i];
+  const isNow  = best.i === nIdx;
+  const saving = nowCost != null ? nowCost - best.cost : null;
+  const today0 = new Date(); today0.setHours(0,0,0,0);
+  const sDay   = new Date(startH.start); sDay.setHours(0,0,0,0);
+  const isTom  = sDay.getTime() > today0.getTime();
 
-  const headline = isNow
-    ? `<span class="ok">Starta nu</span>`
-    : `Bäst att starta ${whenLabel(startH.start)}`;
+  const big = isNow
+    ? `<span class="oknow">Nu</span>`
+    : `${fmtClock(startH.start)}${isTom ? '<span class="day">imorgon</span>' : ''}`;
 
-  const sub = id === 'ev'
-    ? `Laddning: <b>${fmtKr(best.cost)}</b> för hela sessionen`
-    : (isNow ? 'Nu är det billigaste fönstret' : `Klart ${fmtClock(new Date(startH.start.getTime()+D*36e5))}`);
-
-  const saveBlock = (saving != null && saving > 0.005 && !isNow)
-    ? `<div class="card-save">
-         <div class="kr">−${fmtKr(saving)}</div>
-         <div class="lbl">vs. starta nu</div>
-       </div>` : '';
+  const sub = (isNow || saving == null || saving <= 0.005)
+    ? `<span class="cost">${fmtKr(best.cost)} totalt</span>`
+    : `−${fmtKr(saving)}<span class="cost">${fmtKr(best.cost)} totalt</span>`;
 
   /* jämförelse (expanderad) */
   let detail = '';
@@ -581,19 +573,17 @@ function renderCard(id, a, nIdx){
           <span class="cost">${fmtKr(best.cost)}</span>
         </div>
         <div class="cmp-verdict">${verdict}</div>
-        <div class="fineprint">Alla belopp ${TAX_NOTE}</div>
+        <div class="fineprint">${D} h · ${a.kwh.toLocaleString('sv-SE')} kWh · alla belopp ${TAX_NOTE}</div>
       </div>`;
   }
 
   return `<div class="card${open}" data-app="${id}">
-    <div class="card-top">
+    <div class="card-face">
       <div class="card-icon">${def.icon}</div>
-      <div class="card-main">
-        <div class="card-name">${def.name} · <span class="num">${meta}</span></div>
-        <div class="card-headline">${headline}</div>
-        <div class="card-sub">${sub}</div>
-      </div>
-      ${saveBlock}
+      <div class="card-name">${def.name}</div>
+      <div class="card-label">Bäst start</div>
+      <div class="card-big num">${big}</div>
+      <div class="card-sub2 num">${sub}</div>
     </div>
     ${detail}
   </div>`;
