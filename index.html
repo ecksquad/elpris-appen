@@ -120,6 +120,8 @@
   }
   .day-comment-text{font-size:24px;font-weight:500;text-wrap:balance}
   .day-comment-text b{font-weight:700}
+  .total-saving-eyebrow{font-size:16px;font-weight:500;text-wrap:balance}
+  .total-saving-eyebrow b{font-weight:700}
   .total-saving-lead{font-size:16px;font-weight:500;text-wrap:balance;margin-top:4px}
   .total-saving-amt-line{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
   .total-saving-amt{font-size:50px;font-weight:700;color:var(--priceblue);line-height:1.1;
@@ -672,7 +674,8 @@ function render(){
   const priceCommentHtml = `<p class="day-comment-text"><b>Pris idag: ${lowestOre}–${highestOre} öre.</b> ${commentText}</p>`;
 
   const dayCommentInner = (onApps.length && totalSaving > 0.005)
-    ? `<p class="total-saving-amt-line">
+    ? `<p class="total-saving-eyebrow">Följ <b>mina råd</b> idag, så kan du spara:</p>
+       <p class="total-saving-amt-line">
          <span class="total-saving-amt num">${fmtKr(totalSavingIncl)}</span>
          <span class="total-saving-hint">(välj dina apparater i inställningarna)</span>
        </p>
