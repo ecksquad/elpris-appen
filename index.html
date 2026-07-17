@@ -666,15 +666,24 @@ function render(){
   const zoneName = ZONES[state.settings.zone];
   const zoneOre = ZONE_TAX_ORE[state.settings.zone] || ZONE_TAX_ORE.SE3;
   const totalSavingIncl = totalSaving * 1.25;
-  const totalHtml = !onApps.length ? '' : (totalSaving > 0.005
-    ? `<p class="total-saving-lead">Kör ${totalLead} vid ${totalTid} och spara totalt idag</p>
-       <p class="total-saving-amt-line">
+  /* dagens sparbelopp visas FÖRST i rutan (mest actionable) - pris+kommentar
+     kommer efter som stödjande kontext. Utan en riktig besparing finns
+     inget belopp att leda med, så då kommer pris+kommentar överst som förut. */
+  const priceCommentHtml = `<p class="day-comment-text"><b>Pris idag: ${lowestOre}–${highestOre} öre.</b> ${commentText}</p>`;
+
+  const dayCommentInner = (onApps.length && totalSaving > 0.005)
+    ? `<p class="total-saving-amt-line">
          <span class="total-saving-amt num">${fmtKr(totalSavingIncl)}</span>
          <span class="total-saving-hint">(välj dina apparater i inställningarna)</span>
        </p>
+       <p class="total-saving-lead">Kör ${totalLead} vid ${totalTid}.</p>
+       ${priceCommentHtml}
        <p class="total-saving-projection">Gör du så här varje dag i en månad har du <b>${fmtKr(totalSavingIncl*30)}</b> extra att göra vad du vill med. Ett helt år av samma sak ger <b>${fmtKr(totalSavingIncl*365)}</b> – nog för att äntligen unna dig den där drömmen!</p>
        <p class="total-saving-note">Inkl. moms. Nätavgift och energiskatt i ${zoneName} (snitt ca ${zoneOre} öre/kWh) tillkommer på hela din räkning, oavsett tid på dygnet.</p>`
-    : `<p class="total-saving-lead">${onApps.length === 1 ? 'Din valda apparat körs' : 'Dina valda apparater körs'} redan bäst just nu – inget mer att spara idag.</p>`);
+    : (onApps.length
+        ? `${priceCommentHtml}
+           <p class="total-saving-lead">${onApps.length === 1 ? 'Din valda apparat körs' : 'Dina valda apparater körs'} redan bäst just nu – inget mer att spara idag.</p>`
+        : priceCommentHtml);
 
   /* 00/06/12/18 rakt upp/höger/ner/vänster som en klocka, inte mitt i sektionerna */
   const ticks = [0,6,12,18].map(t=>{
@@ -724,8 +733,7 @@ function render(){
       ${banner}
     </section>
     <section class="panel day-comment" style="--dayclr:${dayCommentColor}">
-      <p class="day-comment-text"><b>Pris idag: ${lowestOre}–${highestOre} öre.</b> ${commentText}</p>
-      ${totalHtml}
+      ${dayCommentInner}
     </section>`;
 
   /* --- apparatkort --- */
