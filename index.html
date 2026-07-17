@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#121214">
+<title>Elpris-appen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#121214;
+    --card:#1b1b1f;
+    --card-2:#232329;
+    --line:#2c2c33;
+    --text:#f2efe9;
+    --muted:#9a968f;
+    --accent:#dd5a22;
+    --cheap:#3fae6a;
+    --mid:#e0b23e;
+    --dear:#d15050;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html{color-scheme:dark}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Poppins',system-ui,sans-serif;
+    font-size:15px;
+    line-height:1.45;
+    min-height:100dvh;
+    display:flex;
+    flex-direction:column;
+  }
+  .num{font-family:'Barlow Condensed',sans-serif;font-variant-numeric:tabular-nums}
+  main{width:100%;max-width:560px;margin:0 auto;padding:16px 16px 8px;flex:1}
+
+  /* ---------- header ---------- */
+  header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  header h1{font-size:20px;font-weight:700;letter-spacing:.2px}
+  header h1 span{color:var(--accent)}
+  .zone-chip{
+    margin-left:auto;
+    font-family:'Barlow Condensed',sans-serif;
+    font-weight:600;font-size:15px;letter-spacing:.5px;
+    background:var(--card);border:1px solid var(--line);
+    border-radius:999px;padding:4px 12px;color:var(--muted);
+  }
+  .icon-btn{
+    background:var(--card);border:1px solid var(--line);color:var(--text);
+    width:36px;height:36px;border-radius:12px;font-size:17px;
+    display:grid;place-items:center;cursor:pointer;
+  }
+  .icon-btn:active{transform:scale(.94)}
+
+  /* ---------- timeline ---------- */
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px}
+  .panel-head{display:flex;align-items:baseline;gap:8px;margin-bottom:10px}
+  .panel-head h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  .updated{margin-left:auto;font-size:11px;color:var(--muted)}
+  .tl-wrap{position:relative;padding-top:6px}
+  .tl-bars{display:flex;align-items:flex-end;gap:1px;height:78px}
+  .tl-bars .bar{
+    flex:1;min-width:2px;border-radius:2px 2px 0 0;cursor:pointer;
+    transition:opacity .15s;
+  }
+  .bar.cheap{background:var(--cheap)}
+  .bar.mid{background:var(--mid)}
+  .bar.dear{background:var(--dear)}
+  .bar.past{opacity:.28}
+  .bar.sel{outline:2px solid var(--text);outline-offset:1px}
+  .tl-now{
+    position:absolute;top:0;bottom:18px;width:2px;background:var(--accent);
+    border-radius:2px;pointer-events:none;z-index:2;
+  }
+  .tl-now::before{
+    content:"NU";position:absolute;top:-6px;left:50%;transform:translate(-50%,-100%);
+    font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;
+    letter-spacing:1px;color:var(--accent);
+  }
+  .tl-labels{display:flex;gap:1px;margin-top:4px}
+  .tl-labels div{
+    flex:1;min-width:2px;font-family:'Barlow Condensed',sans-serif;
+    font-size:10px;color:var(--muted);overflow:visible;white-space:nowrap;
+  }
+  .tl-days{display:flex;margin-top:2px}
+  .tl-days div{
+    font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
+    color:var(--muted);text-align:center;border-top:1px solid var(--line);padding-top:3px;
+  }
+  .tl-info{
+    margin-top:10px;min-height:22px;font-size:13px;color:var(--muted);
+    display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;
+  }
+  .tl-info .price{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:600;color:var(--text)}
+  .legend{display:flex;gap:12px;margin-top:8px;font-size:11px;color:var(--muted);align-items:center}
+  .legend i{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:4px;vertical-align:-1px}
+  .tax-note{font-size:10px;color:var(--muted);opacity:.85;margin-left:auto;font-style:italic}
+  .banner{
+    font-size:12px;color:var(--muted);background:var(--card-2);
+    border-radius:10px;padding:7px 10px;margin-top:10px;
+  }
+
+  /* ---------- cards ---------- */
+  .cards{display:flex;flex-direction:column;gap:10px}
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px;cursor:pointer;transition:border-color .15s;
+  }
+  .card:active{border-color:var(--accent)}
+  .card-top{display:flex;align-items:center;gap:12px}
+  .card-icon{
+    font-size:22px;width:46px;height:46px;border-radius:14px;
+    background:var(--card-2);display:grid;place-items:center;flex-shrink:0;
+  }
+  .card-main{flex:1;min-width:0}
+  .card-name{font-size:12px;font-weight:500;color:var(--muted);letter-spacing:.3px}
+  .card-headline{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:600;line-height:1.15}
+  .card-headline .ok{color:var(--cheap)}
+  .card-sub{font-size:12px;color:var(--muted)}
+  .card-sub b{color:var(--cheap);font-weight:600}
+  .card-save{
+    text-align:right;flex-shrink:0;
+  }
+  .card-save .kr{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;color:var(--cheap)}
+  .card-save .lbl{font-size:10px;color:var(--muted)}
+  .card-detail{
+    display:none;margin-top:12px;border-top:1px solid var(--line);padding-top:12px;
+  }
+  .card.open .card-detail{display:block}
+  .cmp-row{
+    display:flex;align-items:baseline;gap:8px;padding:6px 0;font-size:13px;color:var(--muted);
+  }
+  .cmp-row .when{color:var(--text);font-weight:500}
+  .cmp-row .cost{margin-left:auto;font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:600;color:var(--text)}
+  .cmp-row.best .cost,.cmp-row.best .when{color:var(--cheap)}
+  .cmp-verdict{
+    margin-top:8px;background:var(--card-2);border-radius:10px;padding:8px 12px;
+    font-size:13px;text-align:center;
+  }
+  .cmp-verdict b{color:var(--accent)}
+  .fineprint{font-size:10px;color:var(--muted);font-style:italic;margin-top:6px;text-align:right}
+
+  /* ---------- overlays (setup + settings) ---------- */
+  .overlay{
+    position:fixed;inset:0;background:rgba(10,10,12,.7);backdrop-filter:blur(4px);
+    display:none;align-items:flex-end;justify-content:center;z-index:10;
+  }
+  .overlay.show{display:flex}
+  .sheet{
+    background:var(--card);border:1px solid var(--line);border-radius:20px 20px 0 0;
+    width:100%;max-width:560px;max-height:92dvh;overflow-y:auto;padding:20px 18px 24px;
+  }
+  @media(min-width:600px){
+    .overlay{align-items:center}
+    .sheet{border-radius:20px;margin:16px}
+  }
+  .sheet h2{font-size:19px;font-weight:700;margin-bottom:4px}
+  .sheet h2 span{color:var(--accent)}
+  .sheet .lead{font-size:13px;color:var(--muted);margin-bottom:18px}
+  .sheet h3{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:18px 0 8px}
+  .zone-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .zone-opt{
+    background:var(--card-2);border:1px solid var(--line);border-radius:12px;
+    padding:10px 4px;text-align:center;cursor:pointer;
+  }
+  .zone-opt .z{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:700}
+  .zone-opt .zn{font-size:9px;color:var(--muted);line-height:1.2;display:block;margin-top:2px}
+  .zone-opt.sel{border-color:var(--accent);background:rgba(221,90,34,.12)}
+  .zone-opt.sel .z{color:var(--accent)}
+  .app-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .app-opt{
+    background:var(--card-2);border:1px solid var(--line);border-radius:12px;
+    padding:12px;text-align:center;cursor:pointer;position:relative;
+  }
+  .app-opt .ai{font-size:26px;display:block;margin-bottom:4px}
+  .app-opt .an{font-size:12px;font-weight:500}
+  .app-opt .am{font-size:10px;color:var(--muted)}
+  .app-opt.sel{border-color:var(--accent);background:rgba(221,90,34,.12)}
+  .app-opt.sel::after{
+    content:"✓";position:absolute;top:6px;right:9px;color:var(--accent);font-weight:700;
+  }
+  .btn{
+    display:block;width:100%;margin-top:20px;background:var(--accent);color:#fff;
+    border:none;border-radius:12px;padding:13px;font-family:'Poppins',sans-serif;
+    font-size:15px;font-weight:600;cursor:pointer;
+  }
+  .btn:active{transform:scale(.98)}
+  .btn.ghost{background:var(--card-2);color:var(--muted);margin-top:8px}
+  .set-row{
+    display:flex;align-items:center;gap:10px;background:var(--card-2);
+    border-radius:12px;padding:10px 12px;margin-bottom:8px;
+  }
+  .set-row .si{font-size:20px}
+  .set-row .sn{flex:1;font-size:13px;font-weight:500}
+  .set-row label{font-size:10px;color:var(--muted);display:block;text-align:center}
+  .set-row input[type=number]{
+    width:56px;background:var(--card);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:5px 6px;font-family:'Barlow Condensed',sans-serif;
+    font-size:16px;text-align:center;
+  }
+  .set-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
+
+  /* ---------- states / footer ---------- */
+  .state{padding:40px 20px;text-align:center;color:var(--muted);font-size:14px}
+  .state .btn{max-width:220px;margin:16px auto 0}
+  .spin{
+    width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--accent);
+    border-radius:50%;margin:0 auto 12px;animation:sp 1s linear infinite;
+  }
+  @keyframes sp{to{transform:rotate(360deg)}}
+  footer{
+    max-width:560px;margin:0 auto;width:100%;padding:18px 16px 26px;
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:11px;color:var(--muted);
+  }
+  footer a{color:var(--muted)}
+  footer a.donate{color:var(--accent);font-weight:600;text-decoration:none}
+</style>
+</head>
+<body>
+
+<main>
+  <header>
+    <h1>Elpris<span>-appen</span></h1>
+    <div class="zone-chip num" id="zoneChip">SE3</div>
+    <button class="icon-btn" id="settingsBtn" aria-label="Inställningar">⚙︎</button>
+  </header>
+
+  <div id="content">
+    <div class="state"><div class="spin"></div>Hämtar elpriser …</div>
+  </div>
+</main>
+
+<footer>
+  <span>Elpriser från <a href="https://www.elprisetjustnu.se" target="_blank" rel="noopener">elprisetjustnu.se</a></span>
+  <a class="donate" href="#" id="donateLink">♥ Stöd appen</a>
+</footer>
+
+<!-- första körningen -->
+<div class="overlay" id="setupOverlay">
+  <div class="sheet">
+    <h2>Välkommen till Elpris<span>-appen</span></h2>
+    <p class="lead">Se när elen är billigast – och när det lönar sig att starta dina maskiner. Inga konton, allt sparas i din webbläsare.</p>
+    <h3>Ditt elområde</h3>
+    <div class="zone-grid" id="setupZones"></div>
+    <h3>Vilka vill du planera?</h3>
+    <div class="app-grid" id="setupApps"></div>
+    <button class="btn" id="setupDone">Kom igång</button>
+  </div>
+</div>
+
+<!-- inställningar -->
+<div class="overlay" id="settingsOverlay">
+  <div class="sheet">
+    <h2>Inställningar</h2>
+    <h3>Elområde</h3>
+    <div class="zone-grid" id="settingsZones"></div>
+    <h3>Apparater</h3>
+    <div id="settingsApps"></div>
+    <button class="btn" id="settingsSave">Spara</button>
+    <button class="btn ghost" id="settingsCancel">Avbryt</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ============================== data & state ============================== */
+
+const STORE_KEY = 'elprisAppen.v1';
+const TAX_NOTE  = 'exkl. skatter och avgifter';
+
+const ZONES = {
+  SE1:'Norra Sverige', SE2:'Norra Mellansverige',
+  SE3:'Södra Mellansverige', SE4:'Södra Sverige'
+};
+
+const APP_DEFS = {
+  dish:{name:'Diskmaskin',     icon:'🍽️', h:2, kwh:1.2},
+  wash:{name:'Tvättmaskin',    icon:'👕', h:3, kwh:1.0},
+  dry: {name:'Torktumlare',    icon:'🌀', h:2, kwh:2.5},
+  ev:  {name:'Elbilsladdning', icon:'🚗', h:6, kwh:66}   // 11 kW × 6 h
+};
+
+const state = {
+  settings:null,      // {zone, appliances:{id:{on,h,kwh}}}
+  hourly:[],          // [{start:Date, end:Date, price:SEK/kWh}]
+  hasTomorrow:false,
+  selectedBar:null,
+  openCard:null,
+  lastFetch:0
+};
+
+function defaultSettings(){
+  const appliances = {};
+  for(const [id,d] of Object.entries(APP_DEFS)){
+    appliances[id] = {on: id!=='ev', h:d.h, kwh:d.kwh};
+  }
+  return {zone:'SE3', appliances};
+}
+
+function loadSettings(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(!raw) return null;
+    const s = JSON.parse(raw);
+    if(!ZONES[s.zone]) return null;
+    // fyll ev. nya apparater med defaultvärden
+    const def = defaultSettings();
+    for(const id of Object.keys(APP_DEFS)){
+      if(!s.appliances[id]) s.appliances[id] = def.appliances[id];
+    }
+    return s;
+  }catch(e){ return null; }
+}
+
+function saveSettings(){
+  localStorage.setItem(STORE_KEY, JSON.stringify(state.settings));
+}
+
+/* ============================== hämtning ============================== */
+
+function dayUrl(date, zone){
+  const y  = date.getFullYear();
+  const mm = String(date.getMonth()+1).padStart(2,'0');
+  const dd = String(date.getDate()).padStart(2,'0');
+  return `https://www.elprisetjustnu.se/api/v1/prices/${y}/${mm}-${dd}_${zone}.json`;
+}
+
+async function fetchDay(date, zone){
+  try{
+    const r = await fetch(dayUrl(date, zone), {cache:'no-store'});
+    if(!r.ok) return null;                 // 404 = inte publicerat än
+    return await r.json();
+  }catch(e){ return null; }
+}
+
+/* API:t levererar 15-minutersperioder – aggregera till timmar */
+function toHourly(raw){
+  const map = new Map();
+  for(const p of raw){
+    const s = new Date(p.time_start);
+    const key = new Date(s.getFullYear(), s.getMonth(), s.getDate(), s.getHours()).getTime();
+    const e = map.get(key) || {sum:0, n:0};
+    e.sum += p.SEK_per_kWh; e.n++;
+    map.set(key, e);
+  }
+  return [...map.entries()]
+    .sort((a,b)=>a[0]-b[0])
+    .map(([t,{sum,n}])=>({start:new Date(t), end:new Date(t+36e5), price:sum/n}));
+}
+
+async function loadPrices(){
+  const zone = state.settings.zone;
+  const today = new Date();
+  const tomorrow = new Date(Date.now() + 864e5);
+  const [a,b] = await Promise.all([fetchDay(today, zone), fetchDay(tomorrow, zone)]);
+  if(!a || !a.length) throw new Error('no data');
+  state.hasTomorrow = !!(b && b.length);
+  state.hourly = toHourly([...a, ...(b||[])]);
+  state.lastFetch = Date.now();
+}
+
+/* ============================== beräkningar ============================== */
+
+function nowIndex(){
+  const now = Date.now();
+  return state.hourly.findIndex(h => h.start.getTime() <= now && now < h.end.getTime());
+}
+
+/* billigaste sammanhängande fönster inom kommande 36 h */
+function bestWindow(app){
+  const hours = state.hourly;
+  const D = Math.max(1, Math.round(app.h));
+  const perHour = app.kwh / D;
+  const nIdx = nowIndex();
+  if(nIdx < 0) return null;
+  const limit = Date.now() + 36*36e5;
+
+  const costAt = i => {
+    let c = 0;
+    for(let k=0;k<D;k++) c += hours[i+k].price * perHour;
+    return c;
+  };
+
+  let best = null;
+  for(let i=nIdx; i+D <= hours.length && hours[i].start.getTime() <= limit; i++){
+    const c = costAt(i);
+    if(!best || c < best.cost) best = {i, cost:c};
+  }
+  if(!best) return null;
+
+  const nowCost = (nIdx + D <= hours.length) ? costAt(nIdx) : null;
+  return {best, nowCost, nowIdx:nIdx, D};
+}
+
+/* ============================== formatering ============================== */
+
+const krFmt = new Intl.NumberFormat('sv-SE',{minimumFractionDigits:2, maximumFractionDigits:2});
+function fmtKr(v){ return krFmt.format(v) + ' kr'; }
+
+function fmtOre(sekPerKwh){
+  const ore = sekPerKwh * 100;
+  const dec = Math.abs(ore) < 10 ? 1 : 0;
+  return ore.toLocaleString('sv-SE',{minimumFractionDigits:dec, maximumFractionDigits:dec}) + ' öre/kWh';
+}
+
+function fmtClock(d){
+  return d.toLocaleTimeString('sv-SE',{hour:'2-digit', minute:'2-digit'});
+}
+
+function whenLabel(d){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const day = new Date(d);  day.setHours(0,0,0,0);
+  const diff = Math.round((day - today) / 864e5);
+  if(diff === 0) return fmtClock(d);
+  if(diff === 1) return 'imorgon ' + fmtClock(d);
+  return d.toLocaleDateString('sv-SE',{weekday:'short'}) + ' ' + fmtClock(d);
+}
+
+/* ============================== rendering ============================== */
+
+const $ = sel => document.querySelector(sel);
+
+function render(){
+  $('#zoneChip').textContent = state.settings.zone;
+
+  if(!state.hourly.length){
+    $('#content').innerHTML =
+      `<div class="state">Kunde inte hämta elpriser just nu.
+       <button class="btn" onclick="init()">Försök igen</button></div>`;
+    return;
+  }
+
+  const nIdx = nowIndex();
+  const prices = state.hourly.map(h=>h.price);
+  const sorted = [...prices].sort((a,b)=>a-b);
+  const t1 = sorted[Math.floor(sorted.length/3)];
+  const t2 = sorted[Math.floor(sorted.length*2/3)];
+  const cls = p => p < t1 ? 'cheap' : p < t2 ? 'mid' : 'dear';
+  const min = sorted[0], max = sorted[sorted.length-1];
+  const span = (max - min) || 1;
+
+  /* --- tidslinje --- */
+  const now = Date.now();
+  const bars = state.hourly.map((h,i)=>{
+    const hPct = 25 + 75 * (h.price - min) / span;
+    const past = h.end.getTime() <= now ? ' past' : '';
+    const sel  = state.selectedBar === i ? ' sel' : '';
+    return `<div class="bar ${cls(h.price)}${past}${sel}" style="height:${hPct.toFixed(1)}%" data-i="${i}"></div>`;
+  }).join('');
+
+  const labels = state.hourly.map(h=>{
+    const hr = h.start.getHours();
+    return `<div>${hr % 6 === 0 ? String(hr).padStart(2,'0') : ''}</div>`;
+  }).join('');
+
+  const t0 = state.hourly[0].start.getTime();
+  const tEnd = state.hourly[state.hourly.length-1].end.getTime();
+  const nowPct = Math.min(100, Math.max(0, (now - t0) / (tEnd - t0) * 100));
+
+  const todayHours = state.hourly.filter(h => h.start.getDate() === new Date().getDate()).length;
+  const tomorrowHours = state.hourly.length - todayHours;
+  let dayRow = `<div style="flex:${todayHours}">Idag</div>`;
+  if(tomorrowHours > 0) dayRow += `<div style="flex:${tomorrowHours}">Imorgon</div>`;
+
+  const selInfo = state.selectedBar != null && state.hourly[state.selectedBar]
+    ? (()=>{ const h = state.hourly[state.selectedBar];
+        return `<span>${whenLabel(h.start)}–${fmtClock(h.end)}</span>
+                <span class="price">${fmtOre(h.price)}</span>
+                <span style="font-size:10px;font-style:italic">${TAX_NOTE}</span>`; })()
+    : `<span>Tryck på en stapel för timpris</span>`;
+
+  const banner = !state.hasTomorrow
+    ? `<div class="banner">Morgondagens priser publiceras ca kl 13.</div>` : '';
+
+  const timeline = `
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Elpriset nu &amp; framåt</h2>
+        <span class="updated num">uppdaterad ${fmtClock(new Date(state.lastFetch))}</span>
+      </div>
+      <div class="tl-wrap">
+        <div class="tl-bars" id="tlBars">${bars}</div>
+        <div class="tl-now" style="left:${nowPct.toFixed(2)}%"></div>
+        <div class="tl-labels">${labels}</div>
+        <div class="tl-days">${dayRow}</div>
+      </div>
+      <div class="tl-info" id="tlInfo">${selInfo}</div>
+      <div class="legend">
+        <span><i style="background:var(--cheap)"></i>Billigast</span>
+        <span><i style="background:var(--mid)"></i>Medel</span>
+        <span><i style="background:var(--dear)"></i>Dyrast</span>
+        <span class="tax-note">${TAX_NOTE}</span>
+      </div>
+      ${banner}
+    </section>`;
+
+  /* --- apparatkort --- */
+  const cards = Object.entries(state.settings.appliances)
+    .filter(([,a]) => a.on)
+    .map(([id,a]) => renderCard(id, a, nIdx))
+    .join('');
+
+  $('#content').innerHTML = timeline + `<div class="cards">${cards}</div>`;
+
+  /* händelser */
+  $('#tlBars').addEventListener('click', e=>{
+    const b = e.target.closest('.bar');
+    if(!b) return;
+    state.selectedBar = state.selectedBar === +b.dataset.i ? null : +b.dataset.i;
+    render();
+  });
+  document.querySelectorAll('.card').forEach(c=>{
+    c.addEventListener('click', ()=>{
+      state.openCard = state.openCard === c.dataset.app ? null : c.dataset.app;
+      render();
+    });
+  });
+}
+
+function renderCard(id, a, nIdx){
+  const def = APP_DEFS[id];
+  const w = bestWindow(a);
+  const open = state.openCard === id ? ' open' : '';
+
+  if(!w){
+    return `<div class="card${open}" data-app="${id}">
+      <div class="card-top">
+        <div class="card-icon">${def.icon}</div>
+        <div class="card-main">
+          <div class="card-name">${def.name}</div>
+          <div class="card-headline">Ingen prisdata</div>
+        </div>
+      </div></div>`;
+  }
+
+  const {best, nowCost, D} = w;
+  const startH   = state.hourly[best.i];
+  const isNow    = best.i === nIdx;
+  const saving   = nowCost != null ? nowCost - best.cost : null;
+  const meta     = id === 'ev'
+    ? `${(a.kwh/D).toLocaleString('sv-SE',{maximumFractionDigits:1})} kW · ${D} h · ${a.kwh.toLocaleString('sv-SE')} kWh`
+    : `${D} h · ${a.kwh.toLocaleString('sv-SE')} kWh`;
+
+  const headline = isNow
+    ? `<span class="ok">Starta nu</span>`
+    : `Bäst att starta ${whenLabel(startH.start)}`;
+
+  const sub = id === 'ev'
+    ? `Laddning: <b>${fmtKr(best.cost)}</b> för hela sessionen`
+    : (isNow ? 'Nu är det billigaste fönstret' : `Klart ${fmtClock(new Date(startH.start.getTime()+D*36e5))}`);
+
+  const saveBlock = (saving != null && saving > 0.005 && !isNow)
+    ? `<div class="card-save">
+         <div class="kr">−${fmtKr(saving)}</div>
+         <div class="lbl">vs. starta nu</div>
+       </div>` : '';
+
+  /* jämförelse (expanderad) */
+  let detail = '';
+  if(nowCost != null){
+    const endNow  = new Date(state.hourly[nIdx].start.getTime() + D*36e5);
+    const endBest = new Date(startH.start.getTime() + D*36e5);
+    const verdict = isNow || saving <= 0.005
+      ? `Priset är som lägst nu – kör igång!`
+      : `Vänta till <b>${whenLabel(startH.start)}</b> och spara <b>${fmtKr(saving)}</b>`;
+    detail = `
+      <div class="card-detail">
+        <div class="cmp-row${isNow?' best':''}">
+          <span class="when">Starta nu</span>
+          <span>${fmtClock(state.hourly[nIdx].start)}–${fmtClock(endNow)}</span>
+          <span class="cost">${fmtKr(nowCost)}</span>
+        </div>
+        <div class="cmp-row${!isNow?' best':''}">
+          <span class="when">Vänta</span>
+          <span>${whenLabel(startH.start)}–${fmtClock(endBest)}</span>
+          <span class="cost">${fmtKr(best.cost)}</span>
+        </div>
+        <div class="cmp-verdict">${verdict}</div>
+        <div class="fineprint">Alla belopp ${TAX_NOTE}</div>
+      </div>`;
+  }
+
+  return `<div class="card${open}" data-app="${id}">
+    <div class="card-top">
+      <div class="card-icon">${def.icon}</div>
+      <div class="card-main">
+        <div class="card-name">${def.name} · <span class="num">${meta}</span></div>
+        <div class="card-headline">${headline}</div>
+        <div class="card-sub">${sub}</div>
+      </div>
+      ${saveBlock}
+    </div>
+    ${detail}
+  </div>`;
+}
+
+/* ============================== setup / inställningar ============================== */
+
+function zoneGrid(container, selected, onPick){
+  container.innerHTML = Object.entries(ZONES).map(([z,name])=>`
+    <div class="zone-opt${z===selected?' sel':''}" data-z="${z}">
+      <span class="z num">${z}</span><span class="zn">${name}</span>
+    </div>`).join('');
+  container.querySelectorAll('.zone-opt').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      container.querySelectorAll('.zone-opt').forEach(o=>o.classList.remove('sel'));
+      el.classList.add('sel');
+      onPick(el.dataset.z);
+    });
+  });
+}
+
+function showSetup(){
+  const draft = defaultSettings();
+  zoneGrid($('#setupZones'), draft.zone, z => draft.zone = z);
+
+  const grid = $('#setupApps');
+  grid.innerHTML = Object.entries(APP_DEFS).map(([id,d])=>`
+    <div class="app-opt${draft.appliances[id].on?' sel':''}" data-id="${id}">
+      <span class="ai">${d.icon}</span>
+      <span class="an">${d.name}</span>
+      <span class="am num">${d.h} h · ${d.kwh.toLocaleString('sv-SE')} kWh</span>
+    </div>`).join('');
+  grid.querySelectorAll('.app-opt').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const id = el.dataset.id;
+      draft.appliances[id].on = !draft.appliances[id].on;
+      el.classList.toggle('sel', draft.appliances[id].on);
+    });
+  });
+
+  $('#setupDone').onclick = ()=>{
+    state.settings = draft;
+    saveSettings();
+    $('#setupOverlay').classList.remove('show');
+    init();
+  };
+  $('#setupOverlay').classList.add('show');
+}
+
+function showSettings(){
+  const draft = JSON.parse(JSON.stringify(state.settings));
+  zoneGrid($('#settingsZones'), draft.zone, z => draft.zone = z);
+
+  $('#settingsApps').innerHTML = Object.entries(APP_DEFS).map(([id,d])=>{
+    const a = draft.appliances[id];
+    return `
+    <div class="set-row" data-id="${id}">
+      <span class="si">${d.icon}</span>
+      <span class="sn">${d.name}</span>
+      <span><label>timmar</label>
+        <input type="number" class="in-h" min="1" max="12" step="1" value="${a.h}"></span>
+      <span><label>kWh</label>
+        <input type="number" class="in-kwh" min="0.1" max="200" step="0.1" value="${a.kwh}"></span>
+      <input type="checkbox" class="in-on" ${a.on?'checked':''}>
+    </div>`;
+  }).join('');
+
+  $('#settingsSave').onclick = ()=>{
+    document.querySelectorAll('#settingsApps .set-row').forEach(row=>{
+      const a = draft.appliances[row.dataset.id];
+      a.on  = row.querySelector('.in-on').checked;
+      a.h   = Math.min(12, Math.max(1, Math.round(+row.querySelector('.in-h').value || a.h)));
+      a.kwh = Math.min(200, Math.max(0.1, +row.querySelector('.in-kwh').value || a.kwh));
+    });
+    const zoneChanged = draft.zone !== state.settings.zone;
+    state.settings = draft;
+    saveSettings();
+    $('#settingsOverlay').classList.remove('show');
+    if(zoneChanged) init(); else render();
+  };
+  $('#settingsCancel').onclick = ()=> $('#settingsOverlay').classList.remove('show');
+  $('#settingsOverlay').classList.add('show');
+}
+
+/* ============================== start & uppdatering ============================== */
+
+async function init(){
+  $('#content').innerHTML = `<div class="state"><div class="spin"></div>Hämtar elpriser …</div>`;
+  try{
+    await loadPrices();
+  }catch(e){
+    state.hourly = [];
+  }
+  render();
+}
+
+$('#settingsBtn').addEventListener('click', showSettings);
+$('#donateLink').addEventListener('click', e=>{
+  e.preventDefault();
+  alert('Tack för att du vill stödja appen! Donationslänk kommer snart. ♥');
+});
+
+state.settings = loadSettings();
+if(!state.settings){
+  showSetup();
+}else{
+  init();
+}
+
+/* varje minut: flytta NU-markören / byt timme; var 15:e min eller när
+   morgondagens priser saknas efter kl 12:45 – hämta om */
+setInterval(()=>{
+  if(!state.settings || !state.hourly.length) return;
+  const now = new Date();
+  const stale = Date.now() - state.lastFetch > 15*6e4;
+  const wantTomorrow = !state.hasTomorrow &&
+    (now.getHours() > 12 || (now.getHours() === 12 && now.getMinutes() >= 45));
+  if(stale || (wantTomorrow && Date.now() - state.lastFetch > 5*6e4)){
+    init();
+  }else{
+    render();
+  }
+}, 6e4);
+</script>
+</body>
+</html>
