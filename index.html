@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#121214">
 <title>Elpris-appen</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Elpris">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -54,6 +61,14 @@
     display:grid;place-items:center;cursor:pointer;
   }
   .icon-btn:active{transform:scale(.94)}
+  .chip-btn{
+    background:rgba(221,90,34,.14);border:1px solid var(--accent);color:var(--accent);
+    border-radius:999px;padding:5px 11px;font-family:'Poppins',sans-serif;
+    font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;
+  }
+  .chip-btn:active{transform:scale(.96)}
+  .steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:10px;font-size:14px}
+  .steps li b{color:var(--accent)}
 
   /* ---------- timeline ---------- */
   .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px}
@@ -201,6 +216,7 @@
   <header>
     <h1>Elpris<span>-appen</span></h1>
     <div class="zone-chip num" id="zoneChip">SE3</div>
+    <button class="chip-btn" id="installBtn" hidden>📲 Spara</button>
     <button class="icon-btn" id="settingsBtn" aria-label="Inställningar">⚙︎</button>
   </header>
 
@@ -224,6 +240,16 @@
     <h3>Vilka vill du planera?</h3>
     <div class="app-grid" id="setupApps"></div>
     <button class="btn" id="setupDone">Kom igång</button>
+  </div>
+</div>
+
+<!-- spara på hemskärmen -->
+<div class="overlay" id="installOverlay">
+  <div class="sheet">
+    <h2>Spara på <span>hemskärmen</span></h2>
+    <p class="lead">Appen får en egen ikon och öppnas i helskärm – som en vanlig app, utan adressfält.</p>
+    <ol class="steps" id="installSteps"></ol>
+    <button class="btn ghost" id="installClose" style="margin-top:22px">Stäng</button>
   </div>
 </div>
 
@@ -679,6 +705,42 @@ async function init(){
     state.hourly = [];
   }
   render();
+}
+
+/* ---------- spara på hemskärmen ---------- */
+let deferredInstall = null;
+const installBtn = $('#installBtn');
+const isStandalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+if(!isStandalone) installBtn.hidden = false;
+
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault();
+  deferredInstall = e;
+  if(!isStandalone) installBtn.hidden = false;
+});
+window.addEventListener('appinstalled', ()=>{ installBtn.hidden = true; });
+
+installBtn.addEventListener('click', async ()=>{
+  if(deferredInstall){
+    deferredInstall.prompt();
+    const r = await deferredInstall.userChoice;
+    if(r.outcome === 'accepted') installBtn.hidden = true;
+    deferredInstall = null;
+  }else{
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    $('#installSteps').innerHTML = isIOS
+      ? `<li>Öppna sidan i <b>Safari</b> (om du inte redan gjort det)</li>
+         <li>Tryck på <b>dela-ikonen</b> <span style="font-size:17px">&#x2B06;&#xFE0E;</span> i verktygsfältet</li>
+         <li>Välj <b>”Lägg till på hemskärmen”</b> och tryck <b>Lägg till</b></li>`
+      : `<li>Öppna webbläsarens meny <b>⋮</b></li>
+         <li>Välj <b>”Lägg till på startskärmen”</b> eller <b>”Installera app”</b></li>`;
+    $('#installOverlay').classList.add('show');
+  }
+});
+$('#installClose').addEventListener('click', ()=> $('#installOverlay').classList.remove('show'));
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 
 $('#settingsBtn').addEventListener('click', showSettings);
