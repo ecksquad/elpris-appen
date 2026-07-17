@@ -484,8 +484,9 @@ function render(){
           ${wedges}
           <line x1="100" y1="100" x2="${hx.toFixed(1)}" y2="${hy.toFixed(1)}" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
           <circle cx="100" cy="100" r="33" fill="${DCOL[curCls]}"/>
-          <text x="100" y="97" text-anchor="middle" font-size="14" font-weight="700" fill="#121214">${DNAME[curCls]}</text>
-          <text x="100" y="111" text-anchor="middle" font-size="8.5" fill="#121214">${hubSub}</text>
+          <text x="100" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#121214">${DNAME[curCls]}</text>
+          <text x="100" y="103" text-anchor="middle" font-size="13" font-weight="700" fill="#121214" class="num">${(state.hourly[nIdx].price*100).toLocaleString('sv-SE',{maximumFractionDigits:0})} öre</text>
+          <text x="100" y="115" text-anchor="middle" font-size="8" fill="#121214">${hubSub}</text>
           ${ticks}
         </svg>
       </div>
@@ -550,7 +551,7 @@ function renderCard(id, a, nIdx){
 
   const sub = (isNow || saving == null || saving <= 0.005)
     ? `<span class="cost">${fmtKr(best.cost)} totalt</span>`
-    : `−${fmtKr(saving)}<span class="cost">${fmtKr(best.cost)} totalt</span>`;
+    : `Spara ${fmtKr(saving)}<span class="cost">${fmtKr(best.cost)} totalt</span>`;
 
   /* jämförelse (expanderad) */
   let detail = '';
