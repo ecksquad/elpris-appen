@@ -377,23 +377,6 @@ const DAY_COMMENTS = {
   ]
 };
 
-/* när årets besparing (dagens belopp x 365) skulle bli under 5000 kr känns
-   "unna dig drömmen"-raden bara löjlig (användarens ord) - då visas en av
-   dessa istället för hela spara-belopp-rutan. Grön dag: peka på en av de
-   VALDA apparaterna (ingen brådska, spelar ingen roll). Gul/röd dag: ärligt
-   erkänna att det inte är läge idag, utan att låtsas det finns en besparing
-   att skryta om. {app} fylls i med ikon+namn i render(). */
-const SMALL_DIFF_GREEN = [
-  'Liten prisskillnad idag – kör igång {app} när du vill, det spelar ingen roll!',
-  'Priset ligger stilla idag – perfekt läge att bara sätta igång {app}.',
-  'Ingen anledning att vänta idag – kör {app} när det passar dig bäst.'
-];
-const SMALL_DIFF_OTHER = [
-  'Liten prisskillnad idag – vi sparar några kronor en annan dag istället.',
-  'Inget att optimera idag, priset ligger still. Nästa chans kommer snart.',
-  'Idag är det jämnt över – vi hämtar hem besparingen en annan dag.'
-];
-
 const ZONES = {
   SE1:'Norra Sverige', SE2:'Norra Mellansverige',
   SE3:'Södra Mellansverige', SE4:'Södra Sverige'
@@ -533,16 +516,17 @@ function bestWindow(app){
     return c;
   };
 
-  let best = null;
+  let best = null, worst = null;
   for(let i=nIdx; i+D <= hours.length && hours[i].start.getTime() <= limit; i++){
     if(!okStart(i)) continue;
     const c = costAt(i);
     if(!best || c < best.cost) best = {i, cost:c};
+    if(!worst || c > worst.cost) worst = {i, cost:c};
   }
   if(!best) return null;
 
   const nowCost = (nIdx + D <= hours.length) ? costAt(nIdx) : null;
-  return {best, nowCost, nowIdx:nIdx, D};
+  return {best, worst, nowCost, nowIdx:nIdx, D};
 }
 
 /* ============================== formatering ============================== */
@@ -686,12 +670,16 @@ function render(){
      rekommenderad tid istället för direkt nu - visas i samma ruta som
      dagens kommentar, som en andra mening */
   const onApps = Object.entries(state.settings.appliances).filter(([,a]) => a.on);
-  let totalSaving = 0;
+  let totalSaving = 0, totalWorstLoss = 0;
   onApps.forEach(([,a]) => {
     const w = bestWindow(a);
     if(w && w.nowCost != null){
       const s = w.nowCost - w.best.cost;
       if(s > 0.005) totalSaving += s;
+    }
+    if(w && w.worst){
+      const loss = w.worst.cost - w.best.cost;
+      if(loss > 0.005) totalWorstLoss += loss;
     }
   });
   const totalLead = onApps.length === 1 ? 'din valda apparat' : `dina ${onApps.length} valda apparater`;
@@ -704,6 +692,7 @@ function render(){
   const zoneName = ZONES[state.settings.zone];
   const zoneOre = ZONE_TAX_ORE[state.settings.zone] || ZONE_TAX_ORE.SE3;
   const totalSavingIncl = totalSaving * 1.25;
+  const totalWorstLossIncl = totalWorstLoss * 1.25;
   /* skämtsam släng i slutet av skattenoten - triggas av dagens FAKTISKA
      prisspridning, inte av vilken zon man valt. Verifierat mot riktig data
      från elprisetjustnu.se 2026-07-18: SE1/SE2 låg ~8 öre snitt / ~23-25 öre
@@ -721,41 +710,33 @@ function render(){
   const priceCommentHtml = `<p class="day-comment-text"><b>Pris idag: ${lowestOre}–${highestOre} öre.</b> ${commentText}</p>`;
   const taxNoteHtml = `<p class="total-saving-note">Inkl. moms. Nätavgift och energiskatt i ${zoneName} (snitt ca ${zoneOre} öre/kWh) tillkommer på hela din räkning, oavsett tid på dygnet.${hungerGamesJoke}</p>`;
 
-  /* om årets besparing (dagens belopp x 365) blir under 5000 kr känns
-     "unna dig drömmen"-raden bara löjlig (användarens ord) - hela
-     spara-belopp-rutan byts då ut mot en kort, ärlig kommentar istället:
-     grön dag pekar på en av de VALDA apparaterna (kör den, det spelar
-     ingen roll), gul/röd dag erkänner bara att idag inte är dagen. */
+  /* projektionsraden: om årets besparing (dagens belopp x 365) skulle bli
+     minst 5000 kr visas den ursprungliga "unna dig drömmen"-framtidsutsikten.
+     Under det känns det löjligt (användarens ord) att prata drömmar för en
+     chokladkakas pengar - istället visas hur mycket man i stället KAN
+     FÖRLORA om apparaterna körs vid den sämsta möjliga tiden idag (samma
+     fönster/villkor som bestWindow, bara max i stället för min). Priset
+     och "Följ mina råd"-rutan visas alltid som förut när det finns en
+     verklig besparing - bara den här ena raden byts ut. */
   const yearlySaving = totalSavingIncl * 365;
-  const smallDiffHtml = (() => {
-    if(dayCls === 'cheap'){
-      const pickedId = onApps[(Math.imul(commentSeed|0, 2654435761) >>> 0) % onApps.length][0];
-      const app = APP_DEFS[pickedId];
-      const line = pickComment(SMALL_DIFF_GREEN, commentSeed).replace('{app}', `${app.icon} ${app.name}`);
-      return `<p class="total-saving-lead">${line}</p>`;
-    }
-    return `<p class="total-saving-lead">${pickComment(SMALL_DIFF_OTHER, commentSeed)}</p>`;
-  })();
+  const projectionText = yearlySaving >= 5000
+    ? `Gör du så här varje dag i en månad har du <b>${fmtKr(totalSavingIncl*30)}</b> extra att göra vad du vill med. Ett helt år av samma sak ger <b>${fmtKr(yearlySaving)}</b> – nog för att äntligen unna dig den där drömmen!`
+    : `Om du istället kör dina apparater vid sämsta möjliga tid kan det kosta dig upp till <b>${fmtKr(totalWorstLossIncl)}</b> extra idag – följ mina råd och slipp det!`;
 
   const dayCommentInner = !onApps.length
     ? priceCommentHtml
     : (totalSaving <= 0.005
         ? `${priceCommentHtml}
            <p class="total-saving-lead">${onApps.length === 1 ? 'Din valda apparat körs' : 'Dina valda apparater körs'} redan bäst just nu – inget mer att spara idag.</p>`
-        : (yearlySaving < 5000
-            ? `${smallDiffHtml}
-               ${priceCommentHtml}
-               ${taxNoteHtml}`
-            : `<p class="total-saving-eyebrow">Följ <b>mina råd</b> – bara idag kan du spara:</p>
-               <p class="total-saving-amt-line">
-                 <span class="total-saving-amt num">${fmtKr(totalSavingIncl)}</span>
-                 <span class="total-saving-hint">(välj dina apparater i inställningarna)</span>
-               </p>
-               ${priceCommentHtml}
-               <p class="total-saving-projection">Gör du så här varje dag i en månad har du <b>${fmtKr(totalSavingIncl*30)}</b> extra att göra vad du vill med. Ett helt år av samma sak ger <b>${fmtKr(yearlySaving)}</b> – nog för att äntligen unna dig den där drömmen!</p>
-               <p class="total-saving-lead">Kör ${totalLead} vid ${totalTid}.</p>
-               ${taxNoteHtml}`
-          )
+        : `<p class="total-saving-eyebrow">Följ <b>mina råd</b> – bara idag kan du spara:</p>
+           <p class="total-saving-amt-line">
+             <span class="total-saving-amt num">${fmtKr(totalSavingIncl)}</span>
+             <span class="total-saving-hint">(välj dina apparater i inställningarna)</span>
+           </p>
+           ${priceCommentHtml}
+           <p class="total-saving-projection">${projectionText}</p>
+           <p class="total-saving-lead">Kör ${totalLead} vid ${totalTid}.</p>
+           ${taxNoteHtml}`
       );
 
   /* 00/06/12/18 rakt upp/höger/ner/vänster som en klocka, inte mitt i sektionerna */
