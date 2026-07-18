@@ -593,14 +593,17 @@ function render(){
   const lowestOre = Math.min(...winOre), highestOre = Math.max(...winOre);
   const spreadOre = highestOre - lowestOre;
   const lerp = (a,b,t) => a + (b-a)*Math.max(0, Math.min(1, t));
-  const dayRamp = t => {
-    if(t <= 0.30) return `hsl(${lerp(150,95,t/0.30).toFixed(0)},58%,${lerp(38,50,t/0.30).toFixed(0)}%)`;         /* djupgrönt → gulgrönt */
-    if(t <= 0.55) return `hsl(${lerp(60,32,(t-0.30)/0.25).toFixed(0)},75%,52%)`;                                  /* gult → orange */
-    return `hsl(${lerp(16,0,(t-0.55)/0.45).toFixed(0)},72%,${lerp(52,32,(t-0.55)/0.45).toFixed(0)}%)`;            /* orangerött → mörkrött */
-  };
+  /* neon-version av dagsgradienten (användarens val ur en 5-variantsgalleri,
+     "Neon dubbelglöd") - samma steglösa gron→röd-princip som förut, bara
+     mer mättad/ljusare för en glödande look. OBS: detta är BARA ringens
+     relativa dagsfärg - navets färg (DCOL/cls ovan) rör sig INTE med denna
+     skala, den visar alltid det FAKTISKA absoluta priset. Så navet kan vara
+     grönt fast visaren pekar mot en "röd" (dagens dyraste) sektor, om hela
+     dagen ändå ligger under 50 öre. */
+  const dayRamp = t => `hsl(${lerp(140,0,t).toFixed(0)},92%,52%)`;
   const wedgeCol = p => {
     const o = Math.round(p*100);
-    const t = spreadOre > 0 ? (o - lowestOre) / spreadOre : 0.15; /* helt jämn dag -> mjukt grön ton */
+    const t = spreadOre > 0 ? (o - lowestOre) / spreadOre : 0.2; /* helt jämn dag -> mjukt grön ton */
     return dayRamp(t);
   };
 
@@ -618,6 +621,10 @@ function render(){
      stroken bryggar över och slår ihop grannsektionerna till en solid ring */
   const WEDGE_GAP = 5.6, WEDGE_STROKE = 3.06;
   const wedgeSpan = 15 - WEDGE_GAP;
+  /* "neon dubbelglöd": varje sektion får en bred, blurrad glödrand bakom sig
+     (opacity .35, blur 3px) plus den skarpa kärnan ovanpå med ett mjukt
+     SVG-filter-glöd - klassiskt neonrörs-trick, valt av användaren ur en
+     5-variantsgalleri. #ringGlow-filtret delas av alla sektioner + navet. */
   for(let k=0;k<24;k++){
     const idx = nIdx + k;
     const hourOfDay = (baseHour + k) % 24;
@@ -625,7 +632,8 @@ function render(){
     if(idx < state.hourly.length){
       const sel = state.selectedBar === idx ? ' sel' : '';
       const col = wedgeCol(state.hourly[idx].price);
-      wedges += `<path class="wedge${sel}" data-i="${idx}" d="${wedgeD(a0,a1,58,86)}" fill="${col}" stroke="${col}" stroke-width="${WEDGE_STROKE}" stroke-linejoin="round"/>`;
+      wedges += `<path d="${wedgeD(a0,a1,58,86)}" fill="none" stroke="${col}" stroke-width="${(WEDGE_STROKE*2.6).toFixed(2)}" stroke-linejoin="round" opacity="0.35" filter="blur(3px)"/>`;
+      wedges += `<path class="wedge${sel}" data-i="${idx}" d="${wedgeD(a0,a1,58,86)}" fill="${col}" stroke="${col}" stroke-width="${WEDGE_STROKE}" stroke-linejoin="round" filter="url(#ringGlow)"/>`;
     }else{
       wedges += `<path d="${wedgeD(a0,a1,58,86)}" fill="#232329" stroke="#232329" stroke-width="${WEDGE_STROKE}" stroke-linejoin="round"/>`;
     }
@@ -753,6 +761,13 @@ function render(){
       </div>
       <div class="dial-wrap">
         <svg id="dialSvg" viewBox="0 0 200 200" width="250" role="img" aria-label="Elpriset kommande 24 timmar">
+          <defs>
+            <filter id="ringGlow" x="-60%" y="-60%" width="220%" height="220%">
+              <feGaussianBlur stdDeviation="14" result="b"/>
+              <feColorMatrix in="b" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.5 0" result="b2"/>
+              <feMerge><feMergeNode in="b2"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
           <g class="ring">${wedges}</g>
           <line x1="100" y1="100" x2="${hx.toFixed(1)}" y2="${hy.toFixed(1)}" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
           <g class="hub">
