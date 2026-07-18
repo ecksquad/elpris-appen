@@ -684,6 +684,17 @@ function render(){
   const zoneName = ZONES[state.settings.zone];
   const zoneOre = ZONE_TAX_ORE[state.settings.zone] || ZONE_TAX_ORE.SE3;
   const totalSavingIncl = totalSaving * 1.25;
+  /* skämtsam släng i slutet av skattenoten - triggas av dagens FAKTISKA
+     prisspridning, inte av vilken zon man valt. Verifierat mot riktig data
+     från elprisetjustnu.se 2026-07-18: SE1/SE2 låg ~8 öre snitt / ~23-25 öre
+     spridning (nästan alltid billigt, appen har inget dramatiskt att visa),
+     SE3 ~50 öre snitt / 92 öre spridning, SE4 ~89 öre snitt / 166 öre
+     spridning - så en låg spridningsdag missar poängen med appen helt,
+     oavsett vilken zon den händer i (självexkluderande: SE3/SE4-dagar har
+     nästan alltid för stor spridning för att trigga tipset). */
+  const hungerGamesJoke = spreadOre < 40
+    ? ' Känns besparingen futtig? Det är för att elpriset just nu nästan alltid är lågt och jämnt i din zon. Testa att byta till SE3 eller SE4 i inställningarna och se hur mycket appen kan spara där – de är typ Distrikt 12 i Hunger Games, längst från den billiga vattenkraften i norr!'
+    : '';
   /* dagens sparbelopp visas FÖRST i rutan (mest actionable) - pris+kommentar
      kommer efter som stödjande kontext. Utan en riktig besparing finns
      inget belopp att leda med, så då kommer pris+kommentar överst som förut. */
@@ -698,7 +709,7 @@ function render(){
        ${priceCommentHtml}
        <p class="total-saving-projection">Gör du så här varje dag i en månad har du <b>${fmtKr(totalSavingIncl*30)}</b> extra att göra vad du vill med. Ett helt år av samma sak ger <b>${fmtKr(totalSavingIncl*365)}</b> – nog för att äntligen unna dig den där drömmen!</p>
        <p class="total-saving-lead">Kör ${totalLead} vid ${totalTid}.</p>
-       <p class="total-saving-note">Inkl. moms. Nätavgift och energiskatt i ${zoneName} (snitt ca ${zoneOre} öre/kWh) tillkommer på hela din räkning, oavsett tid på dygnet.</p>`
+       <p class="total-saving-note">Inkl. moms. Nätavgift och energiskatt i ${zoneName} (snitt ca ${zoneOre} öre/kWh) tillkommer på hela din räkning, oavsett tid på dygnet.${hungerGamesJoke}</p>`
     : (onApps.length
         ? `${priceCommentHtml}
            <p class="total-saving-lead">${onApps.length === 1 ? 'Din valda apparat körs' : 'Dina valda apparater körs'} redan bäst just nu – inget mer att spara idag.</p>`
