@@ -663,7 +663,14 @@ function render(){
   if(dayCls === 'mixed'){
     let bestK = 0;
     for(let k=1;k<win.length;k++){ if(win[k].price < win[bestK].price) bestK = k; }
-    if(bestK === 0){
+    /* "vänta definitivt till X" ska bara sägas om det FAKTISKT är värt att
+       vänta - annars kunde en 0,8 öres skillnad (dagen är "mixed" pga en
+       stor svängning NÅGON annanstans, men just nu råkar redan ligga nära
+       botten) ändå trigga en "vänta absolut"-rekommendation. Kräver minst
+       15 öre/kWh i skillnad mellan nu och bästa timmen - samma tröskel som
+       "jämn dag" använder på annat håll. */
+    const improvementOre = Math.round((win[0].price - win[bestK].price) * 100);
+    if(bestK === 0 || improvementOre < 15){
       commentText = pickComment(DAY_COMMENTS.now, commentSeed);
     }else{
       const tid = whenLabel(win[bestK].start);
@@ -685,7 +692,7 @@ function render(){
     const w = bestWindow(a);
     if(w && w.worst){
       const s = w.worst.cost - w.best.cost;
-      if(s > 0.005) totalSaving += s;
+      if(s > 0.05) totalSaving += s; /* samma "meningsfullt belopp"-tröskel som apparatkorten */
     }
   });
   const totalLead = onApps.length === 1 ? 'din valda apparat' : `dina ${onApps.length} valda apparater`;
@@ -831,6 +838,10 @@ function renderCard(id, a, nIdx){
   const startH = state.hourly[best.i];
   const isNow  = best.i === nIdx;
   const saving = nowCost != null ? nowCost - best.cost : null;
+  /* 0,005 kr (en halv öre totalt för hela körningen) var för lågt - kunde
+     rekommendera "vänta till imorgon" för en besparing på under en öre.
+     Kräv en riktig, meningsfull summa innan vi säger åt någon att vänta. */
+  const MEANINGFUL_SAVING = 0.05;
   const today0 = new Date(); today0.setHours(0,0,0,0);
   const sDay   = new Date(startH.start); sDay.setHours(0,0,0,0);
   const isTom  = sDay.getTime() > today0.getTime();
@@ -839,7 +850,7 @@ function renderCard(id, a, nIdx){
     ? `<span class="oknow">Nu</span>`
     : `${fmtClock(startH.start)}${isTom ? '<span class="day">imorgon</span>' : ''}`;
 
-  const sub = (isNow || saving == null || saving <= 0.005)
+  const sub = (isNow || saving == null || saving <= MEANINGFUL_SAVING)
     ? ``
     : `Spara ${fmtKr(saving)}`;
 
@@ -848,7 +859,7 @@ function renderCard(id, a, nIdx){
   if(nowCost != null){
     const endNow  = new Date(state.hourly[nIdx].start.getTime() + D*36e5);
     const endBest = new Date(startH.start.getTime() + D*36e5);
-    const verdict = isNow || saving <= 0.005
+    const verdict = isNow || saving <= MEANINGFUL_SAVING
       ? `Priset är som lägst nu – kör igång!`
       : `Vänta till <b>${whenLabel(startH.start)}</b> och spara <b>${fmtKr(saving)}</b>`;
     detail = `
