@@ -734,7 +734,9 @@ function render(){
   const yearlySaving = totalSavingIncl * 365;
 
   const dayCommentInner = !onApps.length
-    ? priceCommentHtml
+    ? `${priceCommentHtml}
+       <p class="total-saving-lead">Inga apparater valda ännu – tryck här för att lägga till dina apparater.</p>
+       <button class="btn" id="addAppliancesBtn" style="margin-top:8px">Lägg till apparater</button>`
     : (totalSaving <= 0.005
         ? `${priceCommentHtml}
            <p class="total-saving-lead">Priset är i princip oförändrat hela dygnet – ingen skillnad att hämta hem idag.</p>`
@@ -815,6 +817,8 @@ function render(){
   $('#content').innerHTML = timeline + `<div class="cards">${cards}</div>`;
 
   /* händelser */
+  const addBtn = $('#addAppliancesBtn');
+  if(addBtn) addBtn.addEventListener('click', showSettings);
   $('#dialSvg').addEventListener('click', e=>{
     const p = e.target.closest('.wedge');
     if(!p) return;
