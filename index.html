@@ -153,46 +153,19 @@
   .total-saving-projection b{color:var(--priceblue);font-weight:700}
   .total-saving-note{font-size:11px;color:var(--muted);font-style:italic}
 
-  /* ---------- cards: 2 kolumner av kvadrater ---------- */
-  .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .card{
+  /* ---------- apparatrader: en rektangel per apparat, alltid utfälld ---------- */
+  .applist{display:flex;flex-direction:column;gap:10px}
+  .arow{
     background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-    padding:12px;cursor:pointer;transition:border-color .15s;aspect-ratio:1;min-width:0;
+    padding:14px 16px;display:flex;align-items:center;gap:14px;
   }
-  .card:active{border-color:var(--accent)}
-  .card.open{grid-column:1 / -1;aspect-ratio:auto}
-  .card-face{
-    height:100%;display:flex;flex-direction:column;align-items:center;
-    justify-content:center;text-align:center;gap:2px;
-  }
-  .card.open .card-face{height:auto}
-  .card-icon{font-size:30px;line-height:1.2}
-  .card-name{font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.3px}
-  .card-label{
-    font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;
-    color:var(--muted);margin-top:8px;
-  }
-  .card-big{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:700;line-height:1.05}
-  .card-big .oknow{color:var(--cheap)}
-  .card-big .day{display:block;font-size:11px;font-weight:400;color:var(--muted);letter-spacing:.5px}
-  .card-sub2{font-size:14px;font-weight:600;color:var(--cheap)}
-  .card-sub2 .cost{display:block;font-size:11px;font-weight:400;color:var(--muted)}
-  .card-detail{
-    display:none;margin-top:12px;border-top:1px solid var(--line);padding-top:12px;
-  }
-  .card.open .card-detail{display:block}
-  .cmp-row{
-    display:flex;align-items:baseline;gap:8px;padding:6px 0;font-size:13px;color:var(--muted);
-  }
-  .cmp-row .when{color:var(--text);font-weight:500}
-  .cmp-row .cost{margin-left:auto;font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:600;color:var(--text)}
-  .cmp-row.best .cost,.cmp-row.best .when{color:var(--cheap)}
-  .cmp-verdict{
-    margin-top:8px;background:var(--card-2);border-radius:10px;padding:8px 12px;
-    font-size:13px;text-align:center;
-  }
-  .cmp-verdict b{color:var(--accent)}
-  .fineprint{font-size:10px;color:var(--muted);font-style:italic;margin-top:6px;text-align:right}
+  .arow-icon{font-size:26px;line-height:1;flex-shrink:0}
+  .arow-txt{flex:1;min-width:0}
+  .arow-name{font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.3px;margin-bottom:3px}
+  .arow-headline{font-family:'Poppins',sans-serif;font-size:16px;font-weight:600;text-wrap:balance}
+  .arow-headline b{color:var(--cheap)}
+  .arow-now{font-size:12px;color:var(--muted);margin-top:4px}
+  .arow-now b{color:var(--accent);font-weight:700}
 
   /* ---------- overlays (setup + settings) ---------- */
   .overlay{
@@ -398,7 +371,7 @@ const APP_DEFS = {
   dry:    {name:'Torktumlare',        icon:'🌀', h:2, kwh:2.5},
   ev:     {name:'Elbil',              icon:'🚗', h:6, kwh:48, kw:8}, // laddeffekt (kW) - kWh räknas ut som kw × h
   phev:   {name:'Laddhybrid',         icon:'🔌', h:3, kwh:11},   // 3,7 kW × 3 h
-  vvb:    {name:'Dusch',              icon:'🚿', h:3, kwh:9, from:6, to:22, verb:'Bäst att duscha'},
+  vvb:    {name:'Dusch',              icon:'🚿', h:3, kwh:9, from:6, to:22},
   sauna:  {name:'Bastu',              icon:'🧖', h:2, kwh:12},
   pool:   {name:'Poolpump',           icon:'🏊', h:6, kwh:4.5},
   spa:    {name:'Spabad',             icon:'🛁', h:4, kwh:8},
@@ -431,7 +404,6 @@ const state = {
   hourly:[],          // [{start:Date, end:Date, price:SEK/kWh}]
   hasTomorrow:false,
   selectedBar:null,
-  openCard:null,
   lastFetch:0
 };
 
@@ -760,7 +732,7 @@ function render(){
      kommer efter som stödjande kontext. Utan en riktig besparing finns
      inget belopp att leda med, så då kommer pris+kommentar överst som förut. */
   const priceCommentHtml = `<p class="day-comment-text"><b>Pris idag: ${lowestOre}–${highestOre} öre.</b> ${commentText}</p>`;
-  const taxNoteHtml = `<p class="total-saving-note">Inkl. moms. Nätavgift och energiskatt i ${zoneName} (snitt ca ${zoneOre} öre/kWh) tillkommer på hela din räkning, oavsett tid på dygnet. Sparbeloppet baseras på dagens dyraste pris jämfört med det billigaste.${hungerGamesJoke}</p>`;
+  const taxNoteHtml = `<p class="total-saving-note">Inkl. moms. Nätavgift och energiskatt i ${zoneName} (snitt ca ${zoneOre} öre/kWh) tillkommer på hela din räkning, oavsett tid på dygnet.${hungerGamesJoke}</p>`;
 
   const yearlySaving = totalSavingIncl * 365;
 
@@ -842,10 +814,17 @@ function render(){
       ${dayCommentInner}
     </section>`;
 
-  /* --- apparatkort --- */
-  const cards = onApps.map(([id,a]) => renderCard(id, a, nIdx)).join('');
+  /* --- apparatrader: störst besparing överst --- */
+  const onAppsRanked = onApps
+    .map(([id,a]) => {
+      const w = bestWindow(a);
+      const saving = (w && w.nowCost != null) ? Math.max(0, w.nowCost - w.best.cost) : -1;
+      return {id, a, w, saving};
+    })
+    .sort((x,y) => y.saving - x.saving);
+  const cards = onAppsRanked.map(({id,a,w}) => renderCard(id, a, nIdx, w)).join('');
 
-  $('#content').innerHTML = timeline + `<div class="cards">${cards}</div>`;
+  $('#content').innerHTML = timeline + `<div class="applist">${cards}</div>`;
 
   /* händelser */
   const addBtn = $('#addAppliancesBtn');
@@ -856,79 +835,45 @@ function render(){
     state.selectedBar = state.selectedBar === +p.dataset.i ? null : +p.dataset.i;
     render();
   });
-  document.querySelectorAll('.card').forEach(c=>{
-    c.addEventListener('click', ()=>{
-      state.openCard = state.openCard === c.dataset.app ? null : c.dataset.app;
-      render();
-    });
-  });
 }
 
-function renderCard(id, a, nIdx){
+function renderCard(id, a, nIdx, w){
   const def = APP_DEFS[id];
-  const w = bestWindow(a);
-  const open = state.openCard === id ? ' open' : '';
 
   if(!w){
-    return `<div class="card${open}" data-app="${id}"><div class="card-face">
-      <div class="card-icon">${def.icon}</div>
-      <div class="card-name">${def.name}</div>
-      <div class="card-big">–</div>
-      <div class="card-name">inget fönster i vald tid</div>
-    </div></div>`;
+    return `<div class="arow" data-app="${id}">
+      <span class="arow-icon">${def.icon}</span>
+      <div class="arow-txt">
+        <div class="arow-name">${def.name}</div>
+        <div class="arow-headline">Inget fönster i vald tid</div>
+      </div>
+    </div>`;
   }
 
   const {best, nowCost, D} = w;
   const startH = state.hourly[best.i];
   const saving = nowCost != null ? nowCost - best.cost : null;
   /* isNow = "kör nu" om det tekniskt bästa läget redan ÄR nu, eller om det
-     inte är värt att vänta dit (se worthWaiting ovan) - annars kunde kortet
+     inte är värt att vänta dit (se worthWaiting ovan) - annars kunde raden
      säga "imorgon" för en besparing på 13 öre. */
   const isNow = best.i === nIdx || !worthWaiting(nowCost, best.cost);
-  const today0 = new Date(); today0.setHours(0,0,0,0);
-  const sDay   = new Date(startH.start); sDay.setHours(0,0,0,0);
-  const isTom  = sDay.getTime() > today0.getTime();
+  const endNow = new Date(state.hourly[nIdx].start.getTime() + D*36e5);
 
-  const big = isNow
-    ? `<span class="oknow">Nu</span>`
-    : `${fmtClock(startH.start)}${isTom ? '<span class="day">imorgon</span>' : ''}`;
+  const headline = isNow
+    ? `Kör igång <b>nu</b> · <b class="num">${fmtKr(nowCost)}</b>`
+    : `Vänta till <b>${whenLabel(startH.start)}</b> och spara <b class="num">${fmtKr(saving)}</b>`;
 
-  const sub = isNow ? `` : `Spara ${fmtKr(saving)}`;
+  const sub = isNow
+    ? `${D} h · ${a.kwh.toLocaleString('sv-SE')} kWh · alla belopp ${TAX_NOTE}`
+    : `Nu skulle kosta <b class="num">${fmtKr(nowCost)}</b> (${fmtClock(state.hourly[nIdx].start)}–${fmtClock(endNow)})`;
 
-  /* jämförelse (expanderad) */
-  let detail = '';
-  if(nowCost != null){
-    const endNow  = new Date(state.hourly[nIdx].start.getTime() + D*36e5);
-    const endBest = new Date(startH.start.getTime() + D*36e5);
-    const verdict = isNow
-      ? `Priset är som lägst nu – kör igång!`
-      : `Vänta till <b>${whenLabel(startH.start)}</b> och spara <b>${fmtKr(saving)}</b>`;
-    detail = `
-      <div class="card-detail">
-        <div class="cmp-row${isNow?' best':''}">
-          <span class="when">Starta nu</span>
-          <span>${fmtClock(state.hourly[nIdx].start)}–${fmtClock(endNow)}</span>
-          <span class="cost">${fmtKr(nowCost)}</span>
-        </div>
-        <div class="cmp-row${!isNow?' best':''}">
-          <span class="when">Vänta</span>
-          <span>${whenLabel(startH.start)}–${fmtClock(endBest)}</span>
-          <span class="cost">${fmtKr(best.cost)}</span>
-        </div>
-        <div class="cmp-verdict">${verdict}</div>
-        <div class="fineprint">${D} h · ${a.kwh.toLocaleString('sv-SE')} kWh · alla belopp ${TAX_NOTE}</div>
-      </div>`;
-  }
-
-  return `<div class="card${open}" data-app="${id}">
-    <div class="card-face">
-      <div class="card-icon">${def.icon}</div>
-      <div class="card-name">${def.name}</div>
-      <div class="card-label">${def.verb || 'Bäst start'}</div>
-      <div class="card-big num">${big}</div>
-      <div class="card-sub2 num">${sub}</div>
+  return `<div class="arow" data-app="${id}">
+    <span class="arow-icon">${def.icon}</span>
+    <div class="arow-txt">
+      <div class="arow-name">${def.name}</div>
+      <div class="arow-headline">${headline}</div>
+      <div class="arow-now">${sub}</div>
     </div>
-    ${detail}
   </div>`;
 }
 
