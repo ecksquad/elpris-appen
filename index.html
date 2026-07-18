@@ -377,6 +377,23 @@ const DAY_COMMENTS = {
   ]
 };
 
+/* när årets besparing (dagens belopp x 365) skulle bli under 5000 kr känns
+   "unna dig drömmen"-raden bara löjlig (användarens ord) - då visas en av
+   dessa istället för hela spara-belopp-rutan. Grön dag: peka på en av de
+   VALDA apparaterna (ingen brådska, spelar ingen roll). Gul/röd dag: ärligt
+   erkänna att det inte är läge idag, utan att låtsas det finns en besparing
+   att skryta om. {app} fylls i med ikon+namn i render(). */
+const SMALL_DIFF_GREEN = [
+  'Liten prisskillnad idag – kör igång {app} när du vill, det spelar ingen roll!',
+  'Priset ligger stilla idag – perfekt läge att bara sätta igång {app}.',
+  'Ingen anledning att vänta idag – kör {app} när det passar dig bäst.'
+];
+const SMALL_DIFF_OTHER = [
+  'Liten prisskillnad idag – vi sparar några kronor en annan dag istället.',
+  'Inget att optimera idag, priset ligger still. Nästa chans kommer snart.',
+  'Idag är det jämnt över – vi hämtar hem besparingen en annan dag.'
+];
+
 const ZONES = {
   SE1:'Norra Sverige', SE2:'Norra Mellansverige',
   SE3:'Södra Mellansverige', SE4:'Södra Sverige'
@@ -702,21 +719,44 @@ function render(){
      kommer efter som stödjande kontext. Utan en riktig besparing finns
      inget belopp att leda med, så då kommer pris+kommentar överst som förut. */
   const priceCommentHtml = `<p class="day-comment-text"><b>Pris idag: ${lowestOre}–${highestOre} öre.</b> ${commentText}</p>`;
+  const taxNoteHtml = `<p class="total-saving-note">Inkl. moms. Nätavgift och energiskatt i ${zoneName} (snitt ca ${zoneOre} öre/kWh) tillkommer på hela din räkning, oavsett tid på dygnet.${hungerGamesJoke}</p>`;
 
-  const dayCommentInner = (onApps.length && totalSaving > 0.005)
-    ? `<p class="total-saving-eyebrow">Följ <b>mina råd</b> – bara idag kan du spara:</p>
-       <p class="total-saving-amt-line">
-         <span class="total-saving-amt num">${fmtKr(totalSavingIncl)}</span>
-         <span class="total-saving-hint">(välj dina apparater i inställningarna)</span>
-       </p>
-       ${priceCommentHtml}
-       <p class="total-saving-projection">Gör du så här varje dag i en månad har du <b>${fmtKr(totalSavingIncl*30)}</b> extra att göra vad du vill med. Ett helt år av samma sak ger <b>${fmtKr(totalSavingIncl*365)}</b> – nog för att äntligen unna dig den där drömmen!</p>
-       <p class="total-saving-lead">Kör ${totalLead} vid ${totalTid}.</p>
-       <p class="total-saving-note">Inkl. moms. Nätavgift och energiskatt i ${zoneName} (snitt ca ${zoneOre} öre/kWh) tillkommer på hela din räkning, oavsett tid på dygnet.${hungerGamesJoke}</p>`
-    : (onApps.length
+  /* om årets besparing (dagens belopp x 365) blir under 5000 kr känns
+     "unna dig drömmen"-raden bara löjlig (användarens ord) - hela
+     spara-belopp-rutan byts då ut mot en kort, ärlig kommentar istället:
+     grön dag pekar på en av de VALDA apparaterna (kör den, det spelar
+     ingen roll), gul/röd dag erkänner bara att idag inte är dagen. */
+  const yearlySaving = totalSavingIncl * 365;
+  const smallDiffHtml = (() => {
+    if(dayCls === 'cheap'){
+      const pickedId = onApps[(Math.imul(commentSeed|0, 2654435761) >>> 0) % onApps.length][0];
+      const app = APP_DEFS[pickedId];
+      const line = pickComment(SMALL_DIFF_GREEN, commentSeed).replace('{app}', `${app.icon} ${app.name}`);
+      return `<p class="total-saving-lead">${line}</p>`;
+    }
+    return `<p class="total-saving-lead">${pickComment(SMALL_DIFF_OTHER, commentSeed)}</p>`;
+  })();
+
+  const dayCommentInner = !onApps.length
+    ? priceCommentHtml
+    : (totalSaving <= 0.005
         ? `${priceCommentHtml}
            <p class="total-saving-lead">${onApps.length === 1 ? 'Din valda apparat körs' : 'Dina valda apparater körs'} redan bäst just nu – inget mer att spara idag.</p>`
-        : priceCommentHtml);
+        : (yearlySaving < 5000
+            ? `${smallDiffHtml}
+               ${priceCommentHtml}
+               ${taxNoteHtml}`
+            : `<p class="total-saving-eyebrow">Följ <b>mina råd</b> – bara idag kan du spara:</p>
+               <p class="total-saving-amt-line">
+                 <span class="total-saving-amt num">${fmtKr(totalSavingIncl)}</span>
+                 <span class="total-saving-hint">(välj dina apparater i inställningarna)</span>
+               </p>
+               ${priceCommentHtml}
+               <p class="total-saving-projection">Gör du så här varje dag i en månad har du <b>${fmtKr(totalSavingIncl*30)}</b> extra att göra vad du vill med. Ett helt år av samma sak ger <b>${fmtKr(yearlySaving)}</b> – nog för att äntligen unna dig den där drömmen!</p>
+               <p class="total-saving-lead">Kör ${totalLead} vid ${totalTid}.</p>
+               ${taxNoteHtml}`
+          )
+      );
 
   /* 00/06/12/18 rakt upp/höger/ner/vänster som en klocka, inte mitt i sektionerna */
   const ticks = [0,6,12,18].map(t=>{
