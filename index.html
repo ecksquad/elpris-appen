@@ -612,27 +612,28 @@ function render(){
   const cls = p => Math.round(p*100) <= 50 ? 'cheap' : Math.round(p*100) <= 99 ? 'mid' : 'dear';
   const DCOL  = {cheap:'#3fae6a', mid:'#e0b23e', dear:'#d15050'};
   const DNAME = {cheap:'GRÖNT', mid:'GULT', dear:'RÖTT'};
-  /* ringens tårtbitar: HELA grönt-till-rött-skalan används för just DEN HÄR
-     dagens spann, så den billigaste timmen alltid är grönast och den
-     dyraste alltid rödast - oavsett vilken absolut prisnivå dagen ligger på.
-     Navets fasta klasser (cls/DCOL ovan) är oförändrade och visar det
-     FAKTISKA priset i kr; ringen visar bara var på dagen det är bäst/sämst. */
   const winOre = win.map(h => Math.round(h.price*100));
   const lowestOre = Math.min(...winOre), highestOre = Math.max(...winOre);
   const spreadOre = highestOre - lowestOre;
   const lerp = (a,b,t) => a + (b-a)*Math.max(0, Math.min(1, t));
-  /* neon-version av dagsgradienten (användarens val ur en 5-variantsgalleri,
-     "Neon dubbelglöd") - samma steglösa gron→röd-princip som förut, bara
-     mer mättad/ljusare för en glödande look. OBS: detta är BARA ringens
-     relativa dagsfärg - navets färg (DCOL/cls ovan) rör sig INTE med denna
-     skala, den visar alltid det FAKTISKA absoluta priset. Så navet kan vara
-     grönt fast visaren pekar mot en "röd" (dagens dyraste) sektor, om hela
-     dagen ändå ligger under 50 öre. */
-  const dayRamp = t => `hsl(${lerp(140,0,t).toFixed(0)},92%,52%)`;
+  /* ringens HUE följer nu dagens faktiska absoluta prisnivå (samma gränser
+     som navets cls ovan: snitt <=50 grönt, <=99 gult, >99 rött) - en billig
+     dag ska vara grön RAKT IGENOM, inte sträcka ut sig till rött bara för
+     att NÅGON timme råkar vara den (fortfarande billiga) dyraste den dagen.
+     Inom den hue:n lerpas ljushet+mättnad efter timmens plats i dagens eget
+     spann, så den billigaste timmen ändå syns som den klaraste nyansen och
+     den dyraste som en dovare nyans av SAMMA färg - användaren kan alltså
+     fortfarande läsa av bäst/sämst på nyansen, bara inom rätt färgfamilj. */
+  const avgOre = winOre.reduce((a,b)=>a+b,0) / winOre.length;
+  const dayFamily = avgOre <= 50 ? 'cheap' : avgOre <= 99 ? 'mid' : 'dear';
+  const RING_HUE = {cheap:143, mid:43, dear:0};
+  const ringHue = RING_HUE[dayFamily];
   const wedgeCol = p => {
     const o = Math.round(p*100);
-    const t = spreadOre > 0 ? (o - lowestOre) / spreadOre : 0.2; /* helt jämn dag -> mjukt grön ton */
-    return dayRamp(t);
+    const t = spreadOre > 0 ? (o - lowestOre) / spreadOre : 0.2; /* helt jämn dag -> mjuk, ej extrem nyans */
+    const light = lerp(66, 34, t);
+    const sat   = lerp(92, 55, t);
+    return `hsl(${ringHue},${sat.toFixed(0)}%,${light.toFixed(0)}%)`;
   };
 
   const arcP = (r,a)=>{ a=(a-90)*Math.PI/180; return [100+r*Math.cos(a), 100+r*Math.sin(a)]; };
