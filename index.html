@@ -164,8 +164,18 @@
   .arow-name{font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.3px;margin-bottom:3px}
   .arow-headline{font-family:'Poppins',sans-serif;font-size:16px;font-weight:600;text-wrap:balance}
   .arow-headline b{color:var(--cheap)}
-  .arow-now{font-size:12px;color:var(--muted);margin-top:4px}
-  .arow-now b{color:var(--accent);font-weight:700}
+  .arow-headline .save-amt{
+    font-size:28px;font-weight:800;color:var(--cheap);
+    animation:saveGlow 2.4s ease-in-out infinite;
+  }
+  @keyframes saveGlow{
+    0%,100%{filter:brightness(1);text-shadow:0 0 0 rgba(63,174,106,0)}
+    50%{filter:brightness(1.35);text-shadow:0 0 14px rgba(63,174,106,.6)}
+  }
+  @media (prefers-reduced-motion: reduce){.arow-headline .save-amt{animation:none}}
+  .arow-now{font-size:12px;color:var(--muted);margin-top:4px;display:flex;flex-direction:column;gap:3px}
+  .arow-now .now-cost{color:var(--accent);font-weight:700}
+  .arow-now .wait-cost{color:var(--cheap);font-weight:700}
 
   /* ---------- overlays (setup + settings) ---------- */
   .overlay{
@@ -857,15 +867,20 @@ function renderCard(id, a, nIdx, w){
      inte är värt att vänta dit (se worthWaiting ovan) - annars kunde raden
      säga "imorgon" för en besparing på 13 öre. */
   const isNow = best.i === nIdx || !worthWaiting(nowCost, best.cost);
-  const endNow = new Date(state.hourly[nIdx].start.getTime() + D*36e5);
+  const endNow  = new Date(state.hourly[nIdx].start.getTime() + D*36e5);
+  const endBest = new Date(startH.start.getTime() + D*36e5);
 
   const headline = isNow
     ? `Kör igång <b>nu</b> · <b class="num">${fmtKr(nowCost)}</b>`
-    : `Vänta till <b>${whenLabel(startH.start)}</b> och spara <b class="num">${fmtKr(saving)}</b>`;
+    : `Vänta till <b>${whenLabel(startH.start)}</b> och spara <span class="save-amt num">${fmtKr(saving)}</span>`;
 
+  /* visar BÅDA absoluta totalkostnaderna (inte bara besparingen) på var sin
+     rad - annars syns aldrig vad det faktiskt kostar att vänta, bara
+     skillnaden. */
   const sub = isNow
-    ? `${D} h · ${a.kwh.toLocaleString('sv-SE')} kWh · alla belopp ${TAX_NOTE}`
-    : `Nu skulle kosta <b class="num">${fmtKr(nowCost)}</b> (${fmtClock(state.hourly[nIdx].start)}–${fmtClock(endNow)})`;
+    ? `<div>${D} h · ${a.kwh.toLocaleString('sv-SE')} kWh · alla belopp ${TAX_NOTE}</div>`
+    : `<div>Totalkostnad nu (${fmtClock(state.hourly[nIdx].start)}–${fmtClock(endNow)}): <b class="now-cost num">${fmtKr(nowCost)}</b></div>
+       <div>Totalkostnad ${whenLabel(startH.start)} (${fmtClock(startH.start)}–${fmtClock(endBest)}): <b class="wait-cost num">${fmtKr(best.cost)}</b></div>`;
 
   return `<div class="arow" data-app="${id}">
     <span class="arow-icon">${def.icon}</span>
