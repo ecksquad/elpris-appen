@@ -407,11 +407,24 @@ const APP_DEFS = {
   mower:  {name:'Robotgräsklippare',  icon:'🌱', h:3, kwh:0.3, from:7, to:20}
 };
 
-/* under denna nivå (kr) räknas en besparing inte som "värt att vänta på" -
-   gäller både enskilda apparatkort (nu vs bästa tid) och totalsumman
-   (sämsta vs bästa tid). Litet hushållsapparat-pris (t.ex. 0,13 kr för en
-   diskmaskin) ska inte trigga en "vänta till imorgon"-rekommendation. */
-const MEANINGFUL_SAVING = 2;
+/* en besparing räknas som "värt att vänta på" om ENTINGEN den absoluta
+   summan spelar roll (MEANINGFUL_SAVING kr) ELLER priset rasar relativt
+   sett (MEANINGFUL_DROP). Bara ett kr-tak missar t.ex. tvättmaskinen som
+   bara drar 1 kWh - även ett ras från 76 till 1 öre (nästan gratis i
+   jämförelse) ger bara 0,80 kr att spara. Bara ett %-tak skulle å andra
+   sidan sakna det för stora förbrukare där en liten relativ skillnad
+   ändå är många kronor. Gäller både enskilda apparatkort (nu vs bästa
+   tid) och totalsumman (sämsta vs bästa tid). */
+const MEANINGFUL_SAVING = 0.5;   // kr
+const MEANINGFUL_DROP   = 0.6;   // 60% billigare eller mer
+
+function worthWaiting(fromCost, toCost){
+  if(fromCost == null || toCost == null) return false;
+  const saving = fromCost - toCost;
+  if(saving <= 0) return false;
+  const relDrop = fromCost > 0 ? saving / fromCost : 0;
+  return saving > MEANINGFUL_SAVING || relDrop >= MEANINGFUL_DROP;
+}
 
 const state = {
   settings:null,      // {zone, appliances:{id:{on,h,kwh}}}
@@ -706,8 +719,7 @@ function render(){
   onApps.forEach(([,a]) => {
     const w = bestWindow(a);
     if(w && w.worst){
-      const s = w.worst.cost - w.best.cost;
-      if(s > MEANINGFUL_SAVING) totalSaving += s;
+      if(worthWaiting(w.worst.cost, w.best.cost)) totalSaving += (w.worst.cost - w.best.cost);
     }
   });
   const totalLead = onApps.length === 1 ? 'din valda apparat' : `dina ${onApps.length} valda apparater`;
@@ -856,11 +868,10 @@ function renderCard(id, a, nIdx){
   const {best, nowCost, D} = w;
   const startH = state.hourly[best.i];
   const saving = nowCost != null ? nowCost - best.cost : null;
-  /* om besparingen mot att köra nu inte når upp till MEANINGFUL_SAVING är det
-     inte värt att vänta - även om den tekniskt bästa timmen ligger imorgon.
-     Utan detta kunde kortet säga "imorgon" för en besparing på 13 öre. */
-  const worthWaiting = saving != null && saving > MEANINGFUL_SAVING;
-  const isNow = best.i === nIdx || !worthWaiting;
+  /* isNow = "kör nu" om det tekniskt bästa läget redan ÄR nu, eller om det
+     inte är värt att vänta dit (se worthWaiting ovan) - annars kunde kortet
+     säga "imorgon" för en besparing på 13 öre. */
+  const isNow = best.i === nIdx || !worthWaiting(nowCost, best.cost);
   const today0 = new Date(); today0.setHours(0,0,0,0);
   const sDay   = new Date(startH.start); sDay.setHours(0,0,0,0);
   const isTom  = sDay.getTime() > today0.getTime();
