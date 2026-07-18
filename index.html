@@ -331,6 +331,7 @@
     <h3>Elområde</h3>
     <div class="zone-grid" id="settingsZones"></div>
     <h3>Apparater</h3>
+    <p class="lead">Välj tider för dina apparater nedan – jag vill inte tvinga dig att gå upp klockan 3 på natten för att dammsuga huset.</p>
     <div id="settingsApps"></div>
     <button class="btn" id="settingsSave">Spara</button>
     <button class="btn ghost" id="settingsCancel">Avbryt</button>
@@ -392,17 +393,25 @@ const ZONES = {
 const ZONE_TAX_ORE = { SE1: 35, SE2: 45, SE3: 68, SE4: 73 };
 
 const APP_DEFS = {
-  dish: {name:'Diskmaskin',         icon:'🍽️', h:2, kwh:1.2},
-  wash: {name:'Tvättmaskin',        icon:'👕', h:3, kwh:1.0},
-  dry:  {name:'Torktumlare',        icon:'🌀', h:2, kwh:2.5},
-  ev:   {name:'Elbil',              icon:'🚗', h:6, kwh:66},   // 11 kW × 6 h
-  phev: {name:'Laddhybrid',         icon:'🔌', h:3, kwh:11},   // 3,7 kW × 3 h
-  vvb:  {name:'Dusch',              icon:'🚿', h:3, kwh:9, from:6, to:22, verb:'Bäst att duscha'},
-  sauna:{name:'Bastu',              icon:'🧖', h:2, kwh:12},
-  pool: {name:'Poolpump',           icon:'🏊', h:6, kwh:4.5},
-  spa:  {name:'Spabad',             icon:'🛁', h:4, kwh:8},
-  floor:{name:'Golvvärme (boost)',  icon:'🔥', h:4, kwh:6}
+  dish:   {name:'Diskmaskin',         icon:'🍽️', h:2, kwh:1.2},
+  wash:   {name:'Tvättmaskin',        icon:'👕', h:3, kwh:1.0},
+  dry:    {name:'Torktumlare',        icon:'🌀', h:2, kwh:2.5},
+  ev:     {name:'Elbil',              icon:'🚗', h:6, kwh:66},   // 11 kW × 6 h
+  phev:   {name:'Laddhybrid',         icon:'🔌', h:3, kwh:11},   // 3,7 kW × 3 h
+  vvb:    {name:'Dusch',              icon:'🚿', h:3, kwh:9, from:6, to:22, verb:'Bäst att duscha'},
+  sauna:  {name:'Bastu',              icon:'🧖', h:2, kwh:12},
+  pool:   {name:'Poolpump',           icon:'🏊', h:6, kwh:4.5},
+  spa:    {name:'Spabad',             icon:'🛁', h:4, kwh:8},
+  floor:  {name:'Golvvärme (boost)',  icon:'🔥', h:4, kwh:6},
+  vacuum: {name:'Robotdammsugare',    icon:'🧹', h:1, kwh:0.1},
+  mower:  {name:'Robotgräsklippare',  icon:'🌱', h:3, kwh:0.3, from:7, to:20}
 };
+
+/* under denna nivå (kr) räknas en besparing inte som "värt att vänta på" -
+   gäller både enskilda apparatkort (nu vs bästa tid) och totalsumman
+   (sämsta vs bästa tid). Litet hushållsapparat-pris (t.ex. 0,13 kr för en
+   diskmaskin) ska inte trigga en "vänta till imorgon"-rekommendation. */
+const MEANINGFUL_SAVING = 2;
 
 const state = {
   settings:null,      // {zone, appliances:{id:{on,h,kwh}}}
@@ -692,7 +701,7 @@ function render(){
     const w = bestWindow(a);
     if(w && w.worst){
       const s = w.worst.cost - w.best.cost;
-      if(s > 0.05) totalSaving += s; /* samma "meningsfullt belopp"-tröskel som apparatkorten */
+      if(s > MEANINGFUL_SAVING) totalSaving += s;
     }
   });
   const totalLead = onApps.length === 1 ? 'din valda apparat' : `dina ${onApps.length} valda apparater`;
@@ -720,7 +729,7 @@ function render(){
      kommer efter som stödjande kontext. Utan en riktig besparing finns
      inget belopp att leda med, så då kommer pris+kommentar överst som förut. */
   const priceCommentHtml = `<p class="day-comment-text"><b>Pris idag: ${lowestOre}–${highestOre} öre.</b> ${commentText}</p>`;
-  const taxNoteHtml = `<p class="total-saving-note">Inkl. moms. Nätavgift och energiskatt i ${zoneName} (snitt ca ${zoneOre} öre/kWh) tillkommer på hela din räkning, oavsett tid på dygnet.${hungerGamesJoke}</p>`;
+  const taxNoteHtml = `<p class="total-saving-note">Inkl. moms. Nätavgift och energiskatt i ${zoneName} (snitt ca ${zoneOre} öre/kWh) tillkommer på hela din räkning, oavsett tid på dygnet. Sparbeloppet baseras på dagens dyraste pris jämfört med det billigaste.${hungerGamesJoke}</p>`;
 
   const yearlySaving = totalSavingIncl * 365;
 
@@ -836,12 +845,12 @@ function renderCard(id, a, nIdx){
 
   const {best, nowCost, D} = w;
   const startH = state.hourly[best.i];
-  const isNow  = best.i === nIdx;
   const saving = nowCost != null ? nowCost - best.cost : null;
-  /* 0,005 kr (en halv öre totalt för hela körningen) var för lågt - kunde
-     rekommendera "vänta till imorgon" för en besparing på under en öre.
-     Kräv en riktig, meningsfull summa innan vi säger åt någon att vänta. */
-  const MEANINGFUL_SAVING = 0.05;
+  /* om besparingen mot att köra nu inte når upp till MEANINGFUL_SAVING är det
+     inte värt att vänta - även om den tekniskt bästa timmen ligger imorgon.
+     Utan detta kunde kortet säga "imorgon" för en besparing på 13 öre. */
+  const worthWaiting = saving != null && saving > MEANINGFUL_SAVING;
+  const isNow = best.i === nIdx || !worthWaiting;
   const today0 = new Date(); today0.setHours(0,0,0,0);
   const sDay   = new Date(startH.start); sDay.setHours(0,0,0,0);
   const isTom  = sDay.getTime() > today0.getTime();
@@ -850,16 +859,14 @@ function renderCard(id, a, nIdx){
     ? `<span class="oknow">Nu</span>`
     : `${fmtClock(startH.start)}${isTom ? '<span class="day">imorgon</span>' : ''}`;
 
-  const sub = (isNow || saving == null || saving <= MEANINGFUL_SAVING)
-    ? ``
-    : `Spara ${fmtKr(saving)}`;
+  const sub = isNow ? `` : `Spara ${fmtKr(saving)}`;
 
   /* jämförelse (expanderad) */
   let detail = '';
   if(nowCost != null){
     const endNow  = new Date(state.hourly[nIdx].start.getTime() + D*36e5);
     const endBest = new Date(startH.start.getTime() + D*36e5);
-    const verdict = isNow || saving <= MEANINGFUL_SAVING
+    const verdict = isNow
       ? `Priset är som lägst nu – kör igång!`
       : `Vänta till <b>${whenLabel(startH.start)}</b> och spara <b>${fmtKr(saving)}</b>`;
     detail = `
