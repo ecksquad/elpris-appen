@@ -666,20 +666,18 @@ function render(){
   }
   const dayCommentColor = {cheap:'var(--cheap)', expensive:'var(--dear)', mixed:'var(--mid)'}[dayCls];
 
-  /* total besparing om ALLA valda apparater körs vid respektive
-     rekommenderad tid istället för direkt nu - visas i samma ruta som
-     dagens kommentar, som en andra mening */
+  /* total besparing om ALLA valda apparater körs vid dagens BÄSTA tid
+     jämfört med den SÄMSTA möjliga tiden (inte "nu" vs bäst) - visas i
+     samma ruta som dagens kommentar, som en andra mening. Värsta-mot-bästa
+     är alltid ett större (eller lika stort) belopp än nu-mot-bästa, så
+     beloppet ser aldrig lika futtigt ut på en lugn dag. */
   const onApps = Object.entries(state.settings.appliances).filter(([,a]) => a.on);
-  let totalSaving = 0, totalWorstLoss = 0;
+  let totalSaving = 0;
   onApps.forEach(([,a]) => {
     const w = bestWindow(a);
-    if(w && w.nowCost != null){
-      const s = w.nowCost - w.best.cost;
-      if(s > 0.005) totalSaving += s;
-    }
     if(w && w.worst){
-      const loss = w.worst.cost - w.best.cost;
-      if(loss > 0.005) totalWorstLoss += loss;
+      const s = w.worst.cost - w.best.cost;
+      if(s > 0.005) totalSaving += s;
     }
   });
   const totalLead = onApps.length === 1 ? 'din valda apparat' : `dina ${onApps.length} valda apparater`;
@@ -692,7 +690,6 @@ function render(){
   const zoneName = ZONES[state.settings.zone];
   const zoneOre = ZONE_TAX_ORE[state.settings.zone] || ZONE_TAX_ORE.SE3;
   const totalSavingIncl = totalSaving * 1.25;
-  const totalWorstLossIncl = totalWorstLoss * 1.25;
   /* skämtsam släng i slutet av skattenoten - triggas av dagens FAKTISKA
      prisspridning, inte av vilken zon man valt. Verifierat mot riktig data
      från elprisetjustnu.se 2026-07-18: SE1/SE2 låg ~8 öre snitt / ~23-25 öre
@@ -710,31 +707,20 @@ function render(){
   const priceCommentHtml = `<p class="day-comment-text"><b>Pris idag: ${lowestOre}–${highestOre} öre.</b> ${commentText}</p>`;
   const taxNoteHtml = `<p class="total-saving-note">Inkl. moms. Nätavgift och energiskatt i ${zoneName} (snitt ca ${zoneOre} öre/kWh) tillkommer på hela din räkning, oavsett tid på dygnet.${hungerGamesJoke}</p>`;
 
-  /* projektionsraden: om årets besparing (dagens belopp x 365) skulle bli
-     minst 5000 kr visas den ursprungliga "unna dig drömmen"-framtidsutsikten.
-     Under det känns det löjligt (användarens ord) att prata drömmar för en
-     chokladkakas pengar - istället visas hur mycket man i stället KAN
-     FÖRLORA om apparaterna körs vid den sämsta möjliga tiden idag (samma
-     fönster/villkor som bestWindow, bara max i stället för min). Priset
-     och "Följ mina råd"-rutan visas alltid som förut när det finns en
-     verklig besparing - bara den här ena raden byts ut. */
   const yearlySaving = totalSavingIncl * 365;
-  const projectionText = yearlySaving >= 5000
-    ? `Gör du så här varje dag i en månad har du <b>${fmtKr(totalSavingIncl*30)}</b> extra att göra vad du vill med. Ett helt år av samma sak ger <b>${fmtKr(yearlySaving)}</b> – nog för att äntligen unna dig den där drömmen!`
-    : `Om du istället kör dina apparater vid sämsta möjliga tid kan det kosta dig upp till <b>${fmtKr(totalWorstLossIncl)}</b> extra idag – följ mina råd och slipp det!`;
 
   const dayCommentInner = !onApps.length
     ? priceCommentHtml
     : (totalSaving <= 0.005
         ? `${priceCommentHtml}
-           <p class="total-saving-lead">${onApps.length === 1 ? 'Din valda apparat körs' : 'Dina valda apparater körs'} redan bäst just nu – inget mer att spara idag.</p>`
+           <p class="total-saving-lead">Priset är i princip oförändrat hela dygnet – ingen skillnad att hämta hem idag.</p>`
         : `<p class="total-saving-eyebrow">Följ <b>mina råd</b> – bara idag kan du spara:</p>
            <p class="total-saving-amt-line">
              <span class="total-saving-amt num">${fmtKr(totalSavingIncl)}</span>
              <span class="total-saving-hint">(välj dina apparater i inställningarna)</span>
            </p>
            ${priceCommentHtml}
-           <p class="total-saving-projection">${projectionText}</p>
+           <p class="total-saving-projection">Gör du så här varje dag i en månad har du <b>${fmtKr(totalSavingIncl*30)}</b> extra att göra vad du vill med. Ett helt år av samma sak ger <b>${fmtKr(yearlySaving)}</b> – nog för att äntligen unna dig den där drömmen!</p>
            <p class="total-saving-lead">Kör ${totalLead} vid ${totalTid}.</p>
            ${taxNoteHtml}`
       );
