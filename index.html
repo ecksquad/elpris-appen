@@ -396,7 +396,7 @@ const APP_DEFS = {
   dish:   {name:'Diskmaskin',         icon:'🍽️', h:2, kwh:1.2},
   wash:   {name:'Tvättmaskin',        icon:'👕', h:3, kwh:1.0},
   dry:    {name:'Torktumlare',        icon:'🌀', h:2, kwh:2.5},
-  ev:     {name:'Elbil',              icon:'🚗', h:6, kwh:66},   // 11 kW × 6 h
+  ev:     {name:'Elbil',              icon:'🚗', h:6, kwh:66, kw:11}, // laddeffekt (kW) - kWh räknas ut som kw × h
   phev:   {name:'Laddhybrid',         icon:'🔌', h:3, kwh:11},   // 3,7 kW × 3 h
   vvb:    {name:'Dusch',              icon:'🚿', h:3, kwh:9, from:6, to:22, verb:'Bäst att duscha'},
   sauna:  {name:'Bastu',              icon:'🧖', h:2, kwh:12},
@@ -426,6 +426,7 @@ function defaultSettings(){
   const appliances = {};
   for(const [id,d] of Object.entries(APP_DEFS)){
     appliances[id] = {on: ['dish','wash','dry'].includes(id), h:d.h, kwh:d.kwh, from:d.from ?? 0, to:d.to ?? 24};
+    if(d.kw != null) appliances[id].kw = d.kw;
   }
   return {zone:'SE3', appliances};
 }
@@ -443,6 +444,11 @@ function loadSettings(){
       const ap = s.appliances[id];
       if(ap.from == null) ap.from = def.appliances[id].from;
       if(ap.to   == null) ap.to   = def.appliances[id].to;
+      /* migrera in laddeffekt (kW) för apparater som fått fältet i efterhand -
+         härled ur befintlig kwh/h-relation så en redan anpassad kwh inte tappas */
+      if(APP_DEFS[id].kw != null && ap.kw == null){
+        ap.kw = ap.h > 0 ? +(ap.kwh / ap.h).toFixed(1) : APP_DEFS[id].kw;
+      }
     }
     return s;
   }catch(e){ return null; }
@@ -952,6 +958,17 @@ function showSettings(){
 
   $('#settingsApps').innerHTML = Object.entries(APP_DEFS).map(([id,d])=>{
     const a = draft.appliances[id];
+    /* apparater med laddeffekt (just nu bara elbil) matar in kW istället för
+       kWh direkt - kWh räknas ut som kw × h så en längre laddtid inte av
+       misstag lämnar kvar ett kWh-värde som gällde för en helt annan tid */
+    const kwhSlot = d.kw != null
+      ? `<span><label>laddeffekt kW</label>
+          <input type="number" class="in-kw" min="1" max="50" step="0.1" value="${a.kw}"></span>`
+      : `<span><label>kWh</label>
+          <input type="number" class="in-kwh" min="0.1" max="200" step="0.1" value="${a.kwh}"></span>`;
+    const kwhHint = d.kw != null
+      ? `<div class="kwh-hint" style="grid-column:1/-1;font-size:10px;color:var(--muted);text-align:right">≈ <span class="kwh-calc">${(a.kw*a.h).toFixed(1)}</span> kWh totalt</div>`
+      : '';
     return `
     <div class="set-row" data-id="${id}">
       <span class="si">${d.icon}</span>
@@ -960,22 +977,38 @@ function showSettings(){
       <span class="inputs">
         <span><label>timmar</label>
           <input type="number" class="in-h" min="1" max="12" step="1" value="${a.h}"></span>
-        <span><label>kWh</label>
-          <input type="number" class="in-kwh" min="0.1" max="200" step="0.1" value="${a.kwh}"></span>
+        ${kwhSlot}
         <span><label>från kl</label>
           <input type="number" class="in-from" min="0" max="23" step="1" value="${a.from}"></span>
         <span><label>till kl</label>
           <input type="number" class="in-to" min="1" max="24" step="1" value="${a.to}"></span>
       </span>
+      ${kwhHint}
     </div>`;
   }).join('');
+
+  $('#settingsApps').querySelectorAll('.set-row').forEach(row=>{
+    const kwEl = row.querySelector('.in-kw');
+    if(!kwEl) return;
+    const hEl = row.querySelector('.in-h');
+    const calcEl = row.querySelector('.kwh-calc');
+    const update = ()=>{ calcEl.textContent = (Math.max(0,+kwEl.value||0) * Math.max(0,+hEl.value||0)).toFixed(1); };
+    kwEl.addEventListener('input', update);
+    hEl.addEventListener('input', update);
+  });
 
   $('#settingsSave').onclick = ()=>{
     document.querySelectorAll('#settingsApps .set-row').forEach(row=>{
       const a = draft.appliances[row.dataset.id];
       a.on   = row.querySelector('.in-on').checked;
       a.h    = Math.min(12, Math.max(1, Math.round(+row.querySelector('.in-h').value || a.h)));
-      a.kwh  = Math.min(200, Math.max(0.1, +row.querySelector('.in-kwh').value || a.kwh));
+      const kwEl = row.querySelector('.in-kw');
+      if(kwEl){
+        a.kw  = Math.min(50, Math.max(1, +kwEl.value || a.kw));
+        a.kwh = +(a.kw * a.h).toFixed(1);
+      }else{
+        a.kwh = Math.min(200, Math.max(0.1, +row.querySelector('.in-kwh').value || a.kwh));
+      }
       const fs = row.querySelector('.in-from').value, ts = row.querySelector('.in-to').value;
       if(fs !== '' && Number.isFinite(+fs)) a.from = Math.min(23, Math.max(0, Math.round(+fs)));
       if(ts !== '' && Number.isFinite(+ts)) a.to   = Math.min(24, Math.max(1, Math.round(+ts)));
