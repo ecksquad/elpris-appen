@@ -387,7 +387,10 @@ const APP_DEFS = {
   spa:    {name:'Spabad',             icon:'🛁', h:4, kwh:8},
   floor:  {name:'Golvvärme (boost)',  icon:'🔥', h:4, kwh:6},
   vacuum: {name:'Robotdammsugare',    icon:'🧹', h:1, kwh:0.1},
-  mower:  {name:'Robotgräsklippare',  icon:'🌱', h:3, kwh:0.3, from:7, to:20}
+  mower:  {name:'Robotgräsklippare',  icon:'🌱', h:3, kwh:0.3, from:7, to:20},
+  laptop: {name:'Laptop',             icon:'💻', h:2, kwh:0.1},   // ~55 W laddare × 2 h
+  gaming: {name:'Gaming-PC',          icon:'🎮', h:4, kwh:1.4},   // ~350 W snitt under spel × 4 h
+  tv:     {name:'TV',                 icon:'📺', h:4, kwh:0.32}   // ~80 W snitt för en 50" LED-LCD × 4 h
 };
 
 /* en besparing räknas som "värt att vänta på" om ENTINGEN den absoluta
@@ -784,7 +787,7 @@ function render(){
   const warnBanner = state.hourly[nIdx].price*100 > 170
     ? `<div class="banner warn">&#9888;&#65039; Mycket högt elpris just nu: ${fmtOre(state.hourly[nIdx].price)}</div>` : '';
 
-  const timeline = `
+  const priceWidget = `
     <section class="panel">
       <div class="panel-head">
         <h2>Kommande 24 timmar</h2>
@@ -819,7 +822,9 @@ function render(){
         <span class="tax-note">${TAX_NOTE}</span>
       </div>
       ${banner}
-    </section>
+    </section>`;
+
+  const dayComment = `
     <section class="panel day-comment" style="--dayclr:${dayCommentColor}">
       ${dayCommentInner}
     </section>`;
@@ -834,7 +839,7 @@ function render(){
     .sort((x,y) => y.saving - x.saving);
   const cards = onAppsRanked.map(({id,a,w}) => renderCard(id, a, nIdx, w)).join('');
 
-  $('#content').innerHTML = timeline + `<div class="applist">${cards}</div>`;
+  $('#content').innerHTML = priceWidget + `<div class="applist">${cards}</div>` + dayComment;
 
   /* händelser */
   const addBtn = $('#addAppliancesBtn');
