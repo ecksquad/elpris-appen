@@ -610,7 +610,7 @@ function render(){
   const win = state.hourly.slice(nIdx, winEnd);
   /* fasta prisklasser (öre/kWh): 0–50 grönt, 51–129 gult, 130+ rött */
   const cls = p => Math.round(p*100) <= 50 ? 'cheap' : Math.round(p*100) <= 129 ? 'mid' : 'dear';
-  const DNAME = {cheap:'GRÖNT', mid:'GULT', dear:'RÖTT'};
+  const DNAME = {cheap:'LÅG', mid:'MEDEL', dear:'HÖG'};
   const winOre = win.map(h => Math.round(h.price*100));
   const lowestOre = Math.min(...winOre), highestOre = Math.max(...winOre);
   const spreadOre = highestOre - lowestOre;
