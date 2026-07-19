@@ -173,6 +173,10 @@
     50%{filter:brightness(1.35);text-shadow:0 0 14px rgba(63,174,106,.6)}
   }
   @media (prefers-reduced-motion: reduce){.arow-headline .save-amt{animation:none}}
+  .arow-headline .tp-label{
+    font-family:'Poppins',sans-serif;font-size:11px;font-weight:600;
+    color:var(--text);text-transform:uppercase;letter-spacing:.6px;
+  }
   .arow-now{font-size:12px;color:var(--muted);margin-top:4px;display:flex;flex-direction:column;gap:3px}
   .arow-now .now-cost{color:var(--accent);font-weight:700}
   .arow-now .wait-cost{color:var(--cheap);font-weight:700}
@@ -876,7 +880,7 @@ function renderCard(id, a, nIdx, w){
   const endBest = new Date(startH.start.getTime() + D*36e5);
 
   const headline = isNow
-    ? `Kör igång <b>nu</b> · <b class="num">${fmtKr(nowCost)}</b>`
+    ? `Kör igång <b>nu</b> · <span class="save-amt num">${fmtKr(nowCost)}</span> <span class="tp-label">Totalt pris</span>`
     : `Vänta till <b>${whenLabel(startH.start)}</b> och spara <span class="save-amt num">${fmtKr(saving)}</span>`;
 
   /* visar BÅDA absoluta totalkostnaderna (inte bara besparingen) på var sin
