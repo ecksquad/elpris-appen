@@ -102,7 +102,7 @@
   /* ringen och navet andas i takt med sparbeloppet - navet får en mjukare,
      mer diffus glöd (större blur) än ringen som bara ljusnar lite */
   .dial-wrap .ring{ animation: ringPulse 2.4s ease-in-out infinite; transform-origin:100px 100px; }
-  .dial-wrap .hub{ animation: hubPulse 2.4s ease-in-out infinite; transform-origin:100px 100px; }
+  .dial-wrap .hub{ animation: hubPulse 2.4s ease-in-out infinite; transform-origin:100px 100px; cursor:pointer; }
   @keyframes ringPulse{
     0%,100%{ filter:brightness(1); }
     50%{ filter:brightness(1.3); }
@@ -180,6 +180,15 @@
   .arow-now{font-size:12px;color:var(--muted);margin-top:4px;display:flex;flex-direction:column;gap:3px}
   .arow-now .now-cost{color:var(--accent);font-weight:700}
   .arow-now .wait-cost{color:var(--cheap);font-weight:700}
+  .arow-now .sel-line{color:var(--priceblue)}
+  .arow-now .sel-cost{color:var(--priceblue);font-weight:700}
+  .selbanner{
+    background:rgba(91,195,232,.12);border:1px solid rgba(91,195,232,.4);
+    border-radius:10px;padding:8px 12px;font-size:12.5px;margin-bottom:10px;
+    color:var(--text);
+  }
+  .selbanner b{color:var(--priceblue)}
+  .selbanner .back{color:var(--accent);font-weight:600}
 
   /* ---------- overlays (setup + settings) ---------- */
   .overlay{
@@ -400,7 +409,9 @@ const T = {
     hoursLabel:'timmar', chargingPowerLabel:'laddeffekt kW', fromLabel:'från kl', toLabel:'till kl', kwhTotalWord:'kWh totalt',
     zoneNames:{SE1:'Norra Sverige', SE2:'Norra Mellansverige', SE3:'Södra Mellansverige', SE4:'Södra Sverige'},
     hoursHeading:'Kommande 24 timmar', updated:t=>`uppdaterad ${t}`,
-    tapHourHint:'Tryck på en timme i ringen för pris',
+    tapHourHint:'Tryck på en sektion i ringen för att se vad dina apparater skulle kosta vid den tiden',
+    selBanner:time=>`⏱ Du tittar på <b>${time}</b> — <span class="back">tryck på trafikljuset i mitten för att gå tillbaka till nu</span>`,
+    totalCostSelLabel:(time,range)=>`Totalkostnad vid vald tid, ${time} (${range}):`,
     tomorrowNotYet:'Morgondagens priser publiceras ca kl 13.',
     highPriceWarn:p=>`&#9888;&#65039; Mycket högt elpris just nu: ${p}`,
     dName:{cheap:'LÅG', mid:'MEDEL', dear:'HÖG'},
@@ -482,7 +493,9 @@ const T = {
     hoursLabel:'hours', chargingPowerLabel:'charging power kW', fromLabel:'from', toLabel:'to', kwhTotalWord:'kWh total',
     zoneNames:{SE1:'Northern Sweden', SE2:'North central Sweden', SE3:'South central Sweden', SE4:'Southern Sweden'},
     hoursHeading:'Next 24 hours', updated:t=>`updated ${t}`,
-    tapHourHint:'Tap an hour on the ring for its price',
+    tapHourHint:'Tap a section of the ring to see what your appliances would cost at that time',
+    selBanner:time=>`⏱ You're looking at <b>${time}</b> — <span class="back">tap the traffic light in the middle to go back to now</span>`,
+    totalCostSelLabel:(time,range)=>`Total cost at your chosen time, ${time} (${range}):`,
     tomorrowNotYet:'Tomorrow’s prices are published around 1 PM.',
     highPriceWarn:p=>`&#9888;&#65039; Very high electricity price right now: ${p}`,
     dName:{cheap:'LOW', mid:'MED', dear:'HIGH'},
@@ -688,6 +701,19 @@ function bestWindow(app){
 
   const nowCost = (nIdx + D <= hours.length) ? costAt(nIdx) : null;
   return {best, worst, nowCost, nowIdx:nIdx, D};
+}
+
+/* kostnad om apparaten startar vid timme i - ignorerar från/till-fönstret,
+   det här är ett uttryckligt "vad OM jag kör den då?"-svar på användarens
+   val i ringen, inte en rekommendation */
+function costStartingAt(app, i){
+  const hours = state.hourly;
+  const D = Math.max(1, Math.round(app.h));
+  if(i == null || i < 0 || i + D > hours.length) return null;
+  const perHour = app.kwh / D;
+  let c = 0;
+  for(let k=0;k<D;k++) c += hours[i+k].price * perHour;
+  return c;
 }
 
 /* ============================== formatering ============================== */
@@ -990,12 +1016,22 @@ function render(){
     .sort((x,y) => y.saving - x.saving);
   const cards = onAppsRanked.map(({id,a,w}) => renderCard(id, a, nIdx, w)).join('');
 
-  $('#content').innerHTML = priceWidget + `<div class="applist">${cards}</div>` + dayComment;
+  /* banner när en timme är vald i ringen - talar om vilket "vad om"-läge
+     apparaterna visar och hur man kommer tillbaka (trafikljuset) */
+  const selBanner = state.selectedBar != null && state.hourly[state.selectedBar] && state.selectedBar !== nIdx
+    ? `<div class="selbanner">${L().selBanner(whenLabel(state.hourly[state.selectedBar].start))}</div>` : '';
+
+  $('#content').innerHTML = priceWidget + selBanner + `<div class="applist">${cards}</div>` + dayComment;
 
   /* händelser */
   const addBtn = $('#addAppliancesBtn');
   if(addBtn) addBtn.addEventListener('click', showSettings);
   $('#dialSvg').addEventListener('click', e=>{
+    /* trafikljuset i mitten = tillbaka till nu */
+    if(e.target.closest('.hub')){
+      if(state.selectedBar != null){ state.selectedBar = null; render(); }
+      return;
+    }
     const p = e.target.closest('.wedge');
     if(!p) return;
     state.selectedBar = state.selectedBar === +p.dataset.i ? null : +p.dataset.i;
@@ -1033,10 +1069,22 @@ function renderCard(id, a, nIdx, w){
   /* visar BÅDA absoluta totalkostnaderna (inte bara besparingen) på var sin
      rad - annars syns aldrig vad det faktiskt kostar att vänta, bara
      skillnaden. */
-  const sub = isNow
+  let sub = isNow
     ? `<div>${L().fineprint(D, a.kwh.toLocaleString(localeTag()), L().taxNoteShort)}</div>`
     : `<div>${L().totalCostNowLabel(`${fmtClock(state.hourly[nIdx].start)}–${fmtClock(endNow)}`)} <b class="now-cost num">${fmtKr(nowCost)}</b></div>
        <div>${L().totalCostAtLabel(whenLabel(startH.start), `${fmtClock(startH.start)}–${fmtClock(endBest)}`)} <b class="wait-cost num">${fmtKr(best.cost)}</b></div>`;
+
+  /* extra blå rad när användaren valt en timme i ringen: vad DEN starttiden
+     skulle kosta för just den här apparaten */
+  const selIdx = state.selectedBar;
+  if(selIdx != null && selIdx !== nIdx){
+    const selCost = costStartingAt(a, selIdx);
+    if(selCost != null){
+      const selStart = state.hourly[selIdx].start;
+      const selEnd = new Date(selStart.getTime() + D*36e5);
+      sub += `<div class="sel-line">${L().totalCostSelLabel(whenLabel(selStart), `${fmtClock(selStart)}–${fmtClock(selEnd)}`)} <b class="sel-cost num">${fmtKr(selCost)}</b></div>`;
+    }
+  }
 
   return `<div class="arow" data-app="${id}">
     <span class="arow-icon">${def.icon}</span>
