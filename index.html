@@ -200,6 +200,7 @@
   .sheet .lead{font-size:13px;color:var(--muted);margin-bottom:18px}
   .sheet h3{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:18px 0 8px}
   .zone-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .zone-grid.lang-grid{grid-template-columns:repeat(2,1fr)}
   .zone-opt{
     background:var(--card-2);border:1px solid var(--line);border-radius:12px;
     padding:10px 4px;text-align:center;cursor:pointer;
@@ -266,6 +267,7 @@
   <header>
     <h1>Elpris<span>-appen</span></h1>
     <button class="zone-chip num" id="zoneChip" aria-label="Byt elområde">SE3</button>
+    <button class="zone-chip" id="langChip" aria-label="Byt språk">SV</button>
     <button class="chip-btn" id="installBtn" hidden>📲 Spara</button>
     <button class="icon-btn" id="settingsBtn" aria-label="Inställningar">⚙︎</button>
   </header>
@@ -284,18 +286,20 @@
 </main>
 
 <footer>
-  <span>Elpriser från <a href="https://www.elprisetjustnu.se" target="_blank" rel="noopener">elprisetjustnu.se</a></span>
-  <a class="donate" href="https://ko-fi.com/ecksquad" target="_blank" rel="noopener">♥ Stöd appen</a>
+  <span><span id="footerSourceText">Elpriser från</span> <a href="https://www.elprisetjustnu.se" target="_blank" rel="noopener">elprisetjustnu.se</a></span>
+  <a class="donate" id="footerDonate" href="https://ko-fi.com/ecksquad" target="_blank" rel="noopener">♥ Stöd appen</a>
 </footer>
 
 <!-- första körningen -->
 <div class="overlay" id="setupOverlay">
   <div class="sheet">
-    <h2>Välkommen till Elpris<span>-appen</span></h2>
-    <p class="lead">Se när elen är billigast – och när det lönar sig att starta dina maskiner. Inga konton, allt sparas i din webbläsare.</p>
-    <h3>Ditt elområde</h3>
+    <h2><span id="setupHeadingPrefix">Välkommen till</span> Elpris<span>-appen</span></h2>
+    <p class="lead" id="setupLead">Se när elen är billigast – och när det lönar sig att starta dina maskiner. Inga konton, allt sparas i din webbläsare.</p>
+    <h3 id="setupLangHeading">Språk</h3>
+    <div class="zone-grid lang-grid" id="setupLang"></div>
+    <h3 id="setupZoneHeading">Ditt elområde</h3>
     <div class="zone-grid" id="setupZones"></div>
-    <h3>Vilka vill du planera?</h3>
+    <h3 id="setupAppsHeading">Vilka vill du planera?</h3>
     <div class="app-grid" id="setupApps"></div>
     <button class="btn" id="setupDone">Kom igång</button>
   </div>
@@ -304,8 +308,8 @@
 <!-- spara på hemskärmen -->
 <div class="overlay" id="installOverlay">
   <div class="sheet">
-    <h2>Spara på <span>hemskärmen</span></h2>
-    <p class="lead">Appen får en egen ikon och öppnas i helskärm – som en vanlig app, utan adressfält.</p>
+    <h2><span id="installHeadingPrefix">Spara på</span> <span id="installHeadingAccent">hemskärmen</span></h2>
+    <p class="lead" id="installLead">Appen får en egen ikon och öppnas i helskärm – som en vanlig app, utan adressfält.</p>
     <ol class="steps" id="installSteps"></ol>
     <button class="btn ghost" id="installClose" style="margin-top:22px">Stäng</button>
   </div>
@@ -314,11 +318,13 @@
 <!-- inställningar -->
 <div class="overlay" id="settingsOverlay">
   <div class="sheet">
-    <h2>Inställningar</h2>
-    <h3>Elområde</h3>
+    <h2 id="settingsHeading">Inställningar</h2>
+    <h3 id="settingsLangHeading">Språk</h3>
+    <div class="zone-grid lang-grid" id="settingsLang"></div>
+    <h3 id="settingsZoneHeading">Elområde</h3>
     <div class="zone-grid" id="settingsZones"></div>
-    <h3>Apparater</h3>
-    <p class="lead">Välj tider för dina apparater nedan – jag vill inte tvinga dig att gå upp klockan 3 på natten för att dammsuga huset.</p>
+    <h3 id="settingsAppsHeading">Apparater</h3>
+    <p class="lead" id="settingsAppsLead">Välj tider för dina apparater nedan – jag vill inte tvinga dig att gå upp klockan 3 på natten för att dammsuga huset.</p>
     <div id="settingsApps"></div>
     <button class="btn" id="settingsSave">Spara</button>
     <button class="btn ghost" id="settingsCancel">Avbryt</button>
@@ -331,44 +337,9 @@
 /* ============================== data & state ============================== */
 
 const STORE_KEY = 'elprisAppen.v1';
-const TAX_NOTE  = 'exkl. skatter och avgifter';
 
-/* vänliga dagskommentarer under urtavlan - en uppsättning per lägesbedömning.
-   samma pris kan ge olika kommentar (roterar deterministiskt på dagens pris),
-   men bedömningen (billig/dyr/blandad) styr ALLTID vilken hylla den tas ifrån */
-const DAY_COMMENTS = {
-  cheap: [
-    'Grön dag – det spelar inte så stor roll när du kör igång.',
-    'Skön dag för plånboken, kör dina maskiner när det passar dig.',
-    'Billigt hela dagen – ingen brådska att vänta på något särskilt.',
-    'Lugn dag, det här. Sätt igång när du vill.',
-    'Ovanligt billigt idag – unna dig att inte tänka på det.'
-  ],
-  expensive: [
-    'Dyr dag tyvärr, inte mycket att välja på. Hoppas på mer blåst imorgon!',
-    'Tungt prisläge idag – håll tummarna för vind imorgon, då brukar det lätta.',
-    'Ingen rolig dag för elpriset. Vi får hoppas vinden tar fart till imorgon.',
-    'Dyrt hela dagen, svårt att komma undan. Blåsigare väder brukar sänka priset.',
-    'Få bra stunder idag – nästa lågtryck kan rädda plånboken imorgon.'
-  ],
-  mixed: [
-    'Stor prisskillnad idag – vänta definitivt till {tid}.',
-    'Idag lönar det sig att vänta, {tid} är klart billigast.',
-    'Här finns pengar att spara – kör igång {tid} istället.',
-    'Blandad dag, men det är värt att hålla ut till {tid}.',
-    'Stor skillnad mellan billigt och dyrt idag. Sikta på {tid}.'
-  ],
-  now: [
-    'Bästa läget är faktiskt redan nu – sätt igång!',
-    'Just nu är det som billigast idag, passa på.',
-    'Det blir inte bättre än så här idag – kör igång nu.'
-  ]
-};
-
-const ZONES = {
-  SE1:'Norra Sverige', SE2:'Norra Mellansverige',
-  SE3:'Södra Mellansverige', SE4:'Södra Sverige'
-};
+const ZONE_KEYS = ['SE1','SE2','SE3','SE4'];
+const LANG_NAMES = {sv:'Svenska', en:'English'};
 
 /* genomsnittlig nätavgift + energiskatt (exkl. moms), uppskattat öre/kWh per
    elområde - SE1/SE2 har till stor del reducerad energiskatt (norra Sverige),
@@ -380,22 +351,193 @@ const ZONES = {
 const ZONE_TAX_ORE = { SE1: 35, SE2: 45, SE3: 68, SE4: 73 };
 
 const APP_DEFS = {
-  dish:   {name:'Diskmaskin',         icon:'🍽️', h:2, kwh:1.2},
-  wash:   {name:'Tvättmaskin',        icon:'👕', h:3, kwh:1.0},
-  dry:    {name:'Torktumlare',        icon:'🌀', h:2, kwh:2.5},
-  ev:     {name:'Elbil',              icon:'🚗', h:6, kwh:48, kw:8}, // laddeffekt (kW) - kWh räknas ut som kw × h
-  phev:   {name:'Laddhybrid',         icon:'🔌', h:3, kwh:11},   // 3,7 kW × 3 h
-  vvb:    {name:'Dusch',              icon:'🚿', h:3, kwh:9, from:6, to:22},
-  sauna:  {name:'Bastu',              icon:'🧖', h:2, kwh:12},
-  pool:   {name:'Poolpump',           icon:'🏊', h:6, kwh:4.5},
-  spa:    {name:'Spabad',             icon:'🛁', h:4, kwh:8},
-  floor:  {name:'Golvvärme (boost)',  icon:'🔥', h:4, kwh:6},
-  vacuum: {name:'Robotdammsugare',    icon:'🧹', h:1, kwh:0.1},
-  mower:  {name:'Robotgräsklippare',  icon:'🌱', h:3, kwh:0.3, from:7, to:20},
-  laptop: {name:'Laptop',             icon:'💻', h:2, kwh:0.1},   // ~55 W laddare × 2 h
-  gaming: {name:'Gaming-PC',          icon:'🎮', h:4, kwh:1.4},   // ~350 W snitt under spel × 4 h
-  tv:     {name:'TV',                 icon:'📺', h:4, kwh:0.32}   // ~80 W snitt för en 50" LED-LCD × 4 h
+  dish:   {name:'Diskmaskin',         nameEn:'Dishwasher',            icon:'🍽️', h:2, kwh:1.2},
+  wash:   {name:'Tvättmaskin',        nameEn:'Washing machine',       icon:'👕', h:3, kwh:1.0},
+  dry:    {name:'Torktumlare',        nameEn:'Tumble dryer',          icon:'🌀', h:2, kwh:2.5},
+  ev:     {name:'Elbil',              nameEn:'Electric car',          icon:'🚗', h:6, kwh:48, kw:8}, // laddeffekt (kW) - kWh räknas ut som kw × h
+  phev:   {name:'Laddhybrid',         nameEn:'Plug-in hybrid',        icon:'🔌', h:3, kwh:11},   // 3,7 kW × 3 h
+  vvb:    {name:'Dusch',              nameEn:'Shower',                icon:'🚿', h:3, kwh:9, from:6, to:22},
+  sauna:  {name:'Bastu',              nameEn:'Sauna',                 icon:'🧖', h:2, kwh:12},
+  pool:   {name:'Poolpump',           nameEn:'Pool pump',             icon:'🏊', h:6, kwh:4.5},
+  spa:    {name:'Spabad',             nameEn:'Hot tub',               icon:'🛁', h:4, kwh:8},
+  floor:  {name:'Golvvärme (boost)',  nameEn:'Floor heating (boost)', icon:'🔥', h:4, kwh:6},
+  vacuum: {name:'Robotdammsugare',    nameEn:'Robot vacuum',          icon:'🧹', h:1, kwh:0.1},
+  mower:  {name:'Robotgräsklippare',  nameEn:'Robot lawn mower',      icon:'🌱', h:3, kwh:0.3, from:7, to:20},
+  laptop: {name:'Laptop',             nameEn:'Laptop',                icon:'💻', h:2, kwh:0.1},   // ~55 W laddare × 2 h
+  gaming: {name:'Gaming-PC',          nameEn:'Gaming PC',             icon:'🎮', h:4, kwh:1.4},   // ~350 W snitt under spel × 4 h
+  tv:     {name:'TV',                 nameEn:'TV',                    icon:'📺', h:4, kwh:0.32}   // ~80 W snitt för en 50" LED-LCD × 4 h
 };
+function appName(def, lang){ return (lang || curLang())==='en' && def.nameEn ? def.nameEn : def.name; }
+
+/* ============================== översättningar ============================== */
+
+const T = {
+  sv: {
+    zoneAria:'Byt elområde', langAria:'Byt språk', settingsAria:'Inställningar',
+    installBtnLabel:'📲 Spara',
+    footerSource:'Elpriser från', footerDonate:'♥ Stöd appen',
+    fetching:'Hämtar elpriser …',
+    fetchError:'Kunde inte hämta elpriser just nu.', retry:'Försök igen',
+    setupHeadingPrefix:'Välkommen till',
+    setupLead:'Se när elen är billigast – och när det lönar sig att starta dina maskiner. Inga konton, allt sparas i din webbläsare.',
+    langHeading:'Språk',
+    setupZoneHeading:'Ditt elområde', setupAppsHeading:'Vilka vill du planera?', setupDone:'Kom igång',
+    installHeadingPrefix:'Spara på', installHeadingAccent:'hemskärmen',
+    installLead:'Appen får en egen ikon och öppnas i helskärm – som en vanlig app, utan adressfält.',
+    installClose:'Stäng',
+    installStepsIOS:[
+      'Öppna sidan i <b>Safari</b> (om du inte redan gjort det)',
+      'Tryck på <b>dela-ikonen</b> <span style="font-size:17px">&#x2B06;&#xFE0E;</span> i verktygsfältet',
+      'Välj <b>”Lägg till på hemskärmen”</b> och tryck <b>Lägg till</b>'
+    ],
+    installStepsAndroid:[
+      'Öppna webbläsarens meny <b>⋮</b>',
+      'Välj <b>”Lägg till på startskärmen”</b> eller <b>”Installera app”</b>'
+    ],
+    settingsHeading:'Inställningar', settingsZoneHeading:'Elområde', settingsAppsHeading:'Apparater',
+    settingsAppsLead:'Välj tider för dina apparater nedan – jag vill inte tvinga dig att gå upp klockan 3 på natten för att dammsuga huset.',
+    settingsSave:'Spara', settingsCancel:'Avbryt',
+    hoursLabel:'timmar', chargingPowerLabel:'laddeffekt kW', fromLabel:'från kl', toLabel:'till kl', kwhTotalWord:'kWh totalt',
+    zoneNames:{SE1:'Norra Sverige', SE2:'Norra Mellansverige', SE3:'Södra Mellansverige', SE4:'Södra Sverige'},
+    hoursHeading:'Kommande 24 timmar', updated:t=>`uppdaterad ${t}`,
+    tapHourHint:'Tryck på en timme i ringen för pris',
+    tomorrowNotYet:'Morgondagens priser publiceras ca kl 13.',
+    highPriceWarn:p=>`&#9888;&#65039; Mycket högt elpris just nu: ${p}`,
+    dName:{cheap:'LÅG', mid:'MEDEL', dear:'HÖG'},
+    hubOkNow:'läge att köra', hubGreenIn:h=>`grönt om ${h} h`, hubNoGreen:'inga gröna timmar',
+    dayComments:{
+      cheap:[
+        'Grön dag – det spelar inte så stor roll när du kör igång.',
+        'Skön dag för plånboken, kör dina maskiner när det passar dig.',
+        'Billigt hela dagen – ingen brådska att vänta på något särskilt.',
+        'Lugn dag, det här. Sätt igång när du vill.',
+        'Ovanligt billigt idag – unna dig att inte tänka på det.'
+      ],
+      expensive:[
+        'Dyr dag tyvärr, inte mycket att välja på. Hoppas på mer blåst imorgon!',
+        'Tungt prisläge idag – håll tummarna för vind imorgon, då brukar det lätta.',
+        'Ingen rolig dag för elpriset. Vi får hoppas vinden tar fart till imorgon.',
+        'Dyrt hela dagen, svårt att komma undan. Blåsigare väder brukar sänka priset.',
+        'Få bra stunder idag – nästa lågtryck kan rädda plånboken imorgon.'
+      ],
+      mixed:[
+        'Stor prisskillnad idag – vänta definitivt till {tid}.',
+        'Idag lönar det sig att vänta, {tid} är klart billigast.',
+        'Här finns pengar att spara – kör igång {tid} istället.',
+        'Blandad dag, men det är värt att hålla ut till {tid}.',
+        'Stor skillnad mellan billigt och dyrt idag. Sikta på {tid}.'
+      ],
+      now:[
+        'Bästa läget är faktiskt redan nu – sätt igång!',
+        'Just nu är det som billigast idag, passa på.',
+        'Det blir inte bättre än så här idag – kör igång nu.'
+      ]
+    },
+    priceToday:(lo,hi)=>`Pris idag: ${lo}–${hi} öre.`,
+    noAppliancesText:'Inga apparater valda ännu – tryck här för att lägga till dina apparater.',
+    addAppliancesBtn:'Lägg till apparater',
+    noSavingToday:'Priset är i princip oförändrat hela dygnet – ingen skillnad att hämta hem idag.',
+    followAdvice:'Följ <b>mina råd</b> – bara idag kan du spara:',
+    chooseHint:'(välj dina apparater i inställningarna)',
+    projection:(m,y)=>`Gör du så här varje dag i en månad har du <b>${m}</b> extra att göra vad du vill med. Ett helt år av samma sak ger <b>${y}</b> – nog för att äntligen unna dig den där drömmen!`,
+    runAt:(lead,tid)=>`Kör ${lead} vid ${tid}.`,
+    oneAppliance:'din valda apparat', nApps:n=>`dina ${n} valda apparater`,
+    recTime:'rekommenderad tid', recTimes:'de rekommenderade tiderna',
+    taxNote:(zone,ore)=>`Inkl. moms. Nätavgift och energiskatt i ${zone} (snitt ca ${ore} öre/kWh) tillkommer på hela din räkning, oavsett tid på dygnet.`,
+    hungerGames:' Känns besparingen futtig? Det är för att elpriset just nu nästan alltid är lågt och jämnt i din zon. Testa att byta till SE3 eller SE4 i inställningarna och se hur mycket appen kan spara där – de är typ Distrikt 12 i Hunger Games, längst från den billiga vattenkraften i norr!',
+    taxNoteShort:'exkl. skatter och avgifter',
+    noWindow:'Inget fönster i vald tid',
+    runNow:'Kör igång', nowWord:'nu', totalPriceLabel:'Totalt pris',
+    waitUntil:'Vänta till', andSave:'och spara',
+    totalCostNowLabel:range=>`Totalkostnad nu (${range}):`,
+    totalCostAtLabel:(time,range)=>`Totalkostnad ${time} (${range}):`,
+    fineprint:(D,kwh,tax)=>`${D} h · ${kwh} kWh · alla belopp ${tax}`,
+    tomorrowWord:'imorgon'
+  },
+  en: {
+    zoneAria:'Change price zone', langAria:'Change language', settingsAria:'Settings',
+    installBtnLabel:'📲 Save',
+    footerSource:'Prices from', footerDonate:'♥ Support the app',
+    fetching:'Fetching electricity prices …',
+    fetchError:'Could not fetch electricity prices right now.', retry:'Try again',
+    setupHeadingPrefix:'Welcome to',
+    setupLead:'See when electricity is cheapest – and when it pays off to start your machines. No accounts, everything is saved in your browser.',
+    langHeading:'Language',
+    setupZoneHeading:'Your price zone', setupAppsHeading:'Which do you want to plan?', setupDone:'Get started',
+    installHeadingPrefix:'Save to your', installHeadingAccent:'home screen',
+    installLead:'The app gets its own icon and opens full-screen – like a regular app, with no address bar.',
+    installClose:'Close',
+    installStepsIOS:[
+      'Open the page in <b>Safari</b> (if you haven’t already)',
+      'Tap the <b>share icon</b> <span style="font-size:17px">&#x2B06;&#xFE0E;</span> in the toolbar',
+      'Choose <b>“Add to Home Screen”</b> and tap <b>Add</b>'
+    ],
+    installStepsAndroid:[
+      'Open the browser menu <b>⋮</b>',
+      'Choose <b>“Add to Home screen”</b> or <b>“Install app”</b>'
+    ],
+    settingsHeading:'Settings', settingsZoneHeading:'Price zone', settingsAppsHeading:'Appliances',
+    settingsAppsLead:'Choose times for your appliances below – I don’t want to make you get up at 3 in the morning to vacuum the house.',
+    settingsSave:'Save', settingsCancel:'Cancel',
+    hoursLabel:'hours', chargingPowerLabel:'charging power kW', fromLabel:'from', toLabel:'to', kwhTotalWord:'kWh total',
+    zoneNames:{SE1:'Northern Sweden', SE2:'North central Sweden', SE3:'South central Sweden', SE4:'Southern Sweden'},
+    hoursHeading:'Next 24 hours', updated:t=>`updated ${t}`,
+    tapHourHint:'Tap an hour on the ring for its price',
+    tomorrowNotYet:'Tomorrow’s prices are published around 1 PM.',
+    highPriceWarn:p=>`&#9888;&#65039; Very high electricity price right now: ${p}`,
+    dName:{cheap:'LOW', mid:'MED', dear:'HIGH'},
+    hubOkNow:'good time now', hubGreenIn:h=>`green in ${h}h`, hubNoGreen:'no green hours',
+    dayComments:{
+      cheap:[
+        'Green day – it barely matters when you run things.',
+        'Easy day for the wallet, run your machines whenever suits you.',
+        'Cheap all day – no rush to wait for anything in particular.',
+        'Calm day, this one. Get going whenever you like.',
+        'Unusually cheap today – treat yourself to not thinking about it.'
+      ],
+      expensive:[
+        'Pricey day unfortunately, not much to choose from. Fingers crossed for more wind tomorrow!',
+        'Tough price level today – hope for wind tomorrow, that usually eases things.',
+        'Not a fun day for electricity prices. Let’s hope the wind picks up by tomorrow.',
+        'Expensive all day, hard to avoid. Windier weather usually brings prices down.',
+        'Few good moments today – the next low-pressure system might save your wallet tomorrow.'
+      ],
+      mixed:[
+        'Big price difference today – definitely wait until {tid}.',
+        'It pays off to wait today, {tid} is clearly cheapest.',
+        'There’s money to save here – run things at {tid} instead.',
+        'Mixed day, but it’s worth holding out until {tid}.',
+        'Big gap between cheap and expensive today. Aim for {tid}.'
+      ],
+      now:[
+        'The best moment is actually already now – get going!',
+        'Right now is as cheap as it gets today, take the chance.',
+        'It won’t get better than this today – run it now.'
+      ]
+    },
+    priceToday:(lo,hi)=>`Price today: ${lo}–${hi} öre.`,
+    noAppliancesText:'No appliances chosen yet – tap here to add your appliances.',
+    addAppliancesBtn:'Add appliances',
+    noSavingToday:'The price is basically flat all day – no difference to gain today.',
+    followAdvice:'Follow <b>my advice</b> – just today you can save:',
+    chooseHint:'(choose your appliances in settings)',
+    projection:(m,y)=>`Do this every day for a month and you’ll have <b>${m}</b> extra to spend however you like. A whole year of the same gives <b>${y}</b> – enough to finally treat yourself to that dream!`,
+    runAt:(lead,tid)=>`Run ${lead} at ${tid}.`,
+    oneAppliance:'your chosen appliance', nApps:n=>`your ${n} chosen appliances`,
+    recTime:'the recommended time', recTimes:'the recommended times',
+    taxNote:(zone,ore)=>`Incl. VAT. Grid fees and energy tax in ${zone} (avg. approx. ${ore} öre/kWh) apply to your whole bill regardless of time of day.`,
+    hungerGames:' Feels like a puny saving? That’s because electricity is almost always cheap and flat in your zone. Try switching to SE3 or SE4 in settings to see how much the app can save there – they’re basically District 12 in the Hunger Games, farthest from the cheap hydropower up north!',
+    taxNoteShort:'excl. taxes and fees',
+    noWindow:'No window in the chosen time',
+    runNow:'Run it', nowWord:'now', totalPriceLabel:'Total price',
+    waitUntil:'Wait until', andSave:'and save',
+    totalCostNowLabel:range=>`Total cost now (${range}):`,
+    totalCostAtLabel:(time,range)=>`Total cost ${time} (${range}):`,
+    fineprint:(D,kwh,tax)=>`${D}h · ${kwh} kWh · all amounts ${tax}`,
+    tomorrowWord:'tomorrow'
+  }
+};
+function L(){ return T[curLang()]; }
 
 /* en besparing räknas som "värt att vänta på" om ENTINGEN den absoluta
    summan spelar roll (MEANINGFUL_SAVING kr) ELLER priset rasar relativt
@@ -417,12 +559,13 @@ function worthWaiting(fromCost, toCost){
 }
 
 const state = {
-  settings:null,      // {zone, appliances:{id:{on,h,kwh}}}
+  settings:null,      // {zone, lang, appliances:{id:{on,h,kwh}}}
   hourly:[],          // [{start:Date, end:Date, price:SEK/kWh}]
   hasTomorrow:false,
   selectedBar:null,
   lastFetch:0
 };
+function curLang(){ return (state.settings && state.settings.lang) || 'sv'; }
 
 function defaultSettings(){
   const appliances = {};
@@ -430,7 +573,7 @@ function defaultSettings(){
     appliances[id] = {on: ['dish','wash','dry'].includes(id), h:d.h, kwh:d.kwh, from:d.from ?? 0, to:d.to ?? 24};
     if(d.kw != null) appliances[id].kw = d.kw;
   }
-  return {zone:'SE3', appliances};
+  return {zone:'SE3', lang:'sv', appliances};
 }
 
 function loadSettings(){
@@ -438,7 +581,8 @@ function loadSettings(){
     const raw = localStorage.getItem(STORE_KEY);
     if(!raw) return null;
     const s = JSON.parse(raw);
-    if(!ZONES[s.zone]) return null;
+    if(!ZONE_KEYS.includes(s.zone)) return null;
+    if(s.lang !== 'en') s.lang = 'sv';
     // fyll ev. nya apparater och nya fält med defaultvärden
     const def = defaultSettings();
     for(const id of Object.keys(APP_DEFS)){
@@ -548,17 +692,21 @@ function bestWindow(app){
 
 /* ============================== formatering ============================== */
 
-const krFmt = new Intl.NumberFormat('sv-SE',{minimumFractionDigits:2, maximumFractionDigits:2});
-function fmtKr(v){ return krFmt.format(v) + ' kr'; }
+function localeTag(){ return curLang()==='en' ? 'en-GB' : 'sv-SE'; }
+
+function fmtKr(v){
+  const fmt = new Intl.NumberFormat(localeTag(), {minimumFractionDigits:2, maximumFractionDigits:2});
+  return fmt.format(v) + ' kr';
+}
 
 function fmtOre(sekPerKwh){
   const ore = sekPerKwh * 100;
   const dec = Math.abs(ore) < 10 ? 1 : 0;
-  return ore.toLocaleString('sv-SE',{minimumFractionDigits:dec, maximumFractionDigits:dec}) + ' öre/kWh';
+  return ore.toLocaleString(localeTag(),{minimumFractionDigits:dec, maximumFractionDigits:dec}) + ' öre/kWh';
 }
 
 function fmtClock(d){
-  return d.toLocaleTimeString('sv-SE',{hour:'2-digit', minute:'2-digit'});
+  return d.toLocaleTimeString(localeTag(),{hour:'2-digit', minute:'2-digit'});
 }
 
 /* väljer en kommentar ur listan utifrån dagens faktiska priser, så samma
@@ -574,8 +722,8 @@ function whenLabel(d){
   const day = new Date(d);  day.setHours(0,0,0,0);
   const diff = Math.round((day - today) / 864e5);
   if(diff === 0) return fmtClock(d);
-  if(diff === 1) return 'imorgon ' + fmtClock(d);
-  return d.toLocaleDateString('sv-SE',{weekday:'short'}) + ' ' + fmtClock(d);
+  if(diff === 1) return L().tomorrowWord + ' ' + fmtClock(d);
+  return d.toLocaleDateString(localeTag(),{weekday:'short'}) + ' ' + fmtClock(d);
 }
 
 /* ============================== rendering ============================== */
@@ -583,12 +731,13 @@ function whenLabel(d){
 const $ = sel => document.querySelector(sel);
 
 function render(){
+  applyChrome();
   $('#zoneChip').textContent = state.settings.zone;
 
   if(!state.hourly.length){
     $('#content').innerHTML =
-      `<div class="state">Kunde inte hämta elpriser just nu.
-       <button class="btn" onclick="init()">Försök igen</button></div>`;
+      `<div class="state">${L().fetchError}
+       <button class="btn" onclick="init()">${L().retry}</button></div>`;
     return;
   }
 
@@ -599,7 +748,7 @@ function render(){
   const win = state.hourly.slice(nIdx, winEnd);
   /* fasta prisklasser (öre/kWh): 0–50 grönt, 51–129 gult, 130+ rött */
   const cls = p => Math.round(p*100) <= 50 ? 'cheap' : Math.round(p*100) <= 129 ? 'mid' : 'dear';
-  const DNAME = {cheap:'LÅG', mid:'MEDEL', dear:'HÖG'};
+  const DNAME = L().dName;
   const winOre = win.map(h => Math.round(h.price*100));
   const lowestOre = Math.min(...winOre), highestOre = Math.max(...winOre);
   const spreadOre = highestOre - lowestOre;
@@ -676,8 +825,8 @@ function render(){
   const hubTextCol = nowHsl.l < 45 ? '#f2efe9' : '#121214';
   let till = null;
   for(let k=1;k<win.length;k++){ if(cls(win[k].price)==='cheap'){ till = k; break; } }
-  const hubSub = curCls==='cheap' ? 'läge att köra'
-    : (till ? `grönt om ${till} h` : 'inga gröna timmar');
+  const hubSub = curCls==='cheap' ? L().hubOkNow
+    : (till ? L().hubGreenIn(till) : L().hubNoGreen);
 
   /* dagens vänliga kommentar: bygger på det FAKTISKA prisläget (fasta
      öre-klasser), inte den relativa ringfärgen ovan - annars skulle en dyr
@@ -701,13 +850,13 @@ function render(){
        "jämn dag" använder på annat håll. */
     const improvementOre = Math.round((win[0].price - win[bestK].price) * 100);
     if(bestK === 0 || improvementOre < 15){
-      commentText = pickComment(DAY_COMMENTS.now, commentSeed);
+      commentText = pickComment(L().dayComments.now, commentSeed);
     }else{
       const tid = whenLabel(win[bestK].start);
-      commentText = pickComment(DAY_COMMENTS.mixed, commentSeed).replace('{tid}', tid);
+      commentText = pickComment(L().dayComments.mixed, commentSeed).replace('{tid}', tid);
     }
   }else{
-    commentText = pickComment(DAY_COMMENTS[dayCls], commentSeed);
+    commentText = pickComment(L().dayComments[dayCls], commentSeed);
   }
   const dayCommentColor = {cheap:'var(--cheap)', expensive:'var(--dear)', mixed:'var(--mid)'}[dayCls];
 
@@ -724,14 +873,14 @@ function render(){
       if(worthWaiting(w.worst.cost, w.best.cost)) totalSaving += (w.worst.cost - w.best.cost);
     }
   });
-  const totalLead = onApps.length === 1 ? 'din valda apparat' : `dina ${onApps.length} valda apparater`;
-  const totalTid  = onApps.length === 1 ? 'rekommenderad tid' : 'de rekommenderade tiderna';
+  const totalLead = onApps.length === 1 ? L().oneAppliance : L().nApps(onApps.length);
+  const totalTid  = onApps.length === 1 ? L().recTime : L().recTimes;
   /* momsen (25%) läggs på sparbeloppet - det är en verklig effekt eftersom
      moms tas ut på HELA elpriset, alltså även på det du sparar. Nätavgift
      och energiskatt är däremot flata avgifter som tillkommer oavsett när
      man kör igång, så de ändrar inte sparbeloppet i sig - zonens snittnivå
      visas bara som information i texten under. */
-  const zoneName = ZONES[state.settings.zone];
+  const zoneName = L().zoneNames[state.settings.zone];
   const zoneOre = ZONE_TAX_ORE[state.settings.zone] || ZONE_TAX_ORE.SE3;
   const totalSavingIncl = totalSaving * 1.25;
   /* skämtsam släng i slutet av skattenoten - triggas av dagens FAKTISKA
@@ -742,32 +891,30 @@ function render(){
      spridning - så en låg spridningsdag missar poängen med appen helt,
      oavsett vilken zon den händer i (självexkluderande: SE3/SE4-dagar har
      nästan alltid för stor spridning för att trigga tipset). */
-  const hungerGamesJoke = spreadOre < 40
-    ? ' Känns besparingen futtig? Det är för att elpriset just nu nästan alltid är lågt och jämnt i din zon. Testa att byta till SE3 eller SE4 i inställningarna och se hur mycket appen kan spara där – de är typ Distrikt 12 i Hunger Games, längst från den billiga vattenkraften i norr!'
-    : '';
+  const hungerGamesJoke = spreadOre < 40 ? L().hungerGames : '';
   /* dagens sparbelopp visas FÖRST i rutan (mest actionable) - pris+kommentar
      kommer efter som stödjande kontext. Utan en riktig besparing finns
      inget belopp att leda med, så då kommer pris+kommentar överst som förut. */
-  const priceCommentHtml = `<p class="day-comment-text"><b>Pris idag: ${lowestOre}–${highestOre} öre.</b> ${commentText}</p>`;
-  const taxNoteHtml = `<p class="total-saving-note">Inkl. moms. Nätavgift och energiskatt i ${zoneName} (snitt ca ${zoneOre} öre/kWh) tillkommer på hela din räkning, oavsett tid på dygnet.${hungerGamesJoke}</p>`;
+  const priceCommentHtml = `<p class="day-comment-text"><b>${L().priceToday(lowestOre, highestOre)}</b> ${commentText}</p>`;
+  const taxNoteHtml = `<p class="total-saving-note">${L().taxNote(zoneName, zoneOre)}${hungerGamesJoke}</p>`;
 
   const yearlySaving = totalSavingIncl * 365;
 
   const dayCommentInner = !onApps.length
     ? `${priceCommentHtml}
-       <p class="total-saving-lead">Inga apparater valda ännu – tryck här för att lägga till dina apparater.</p>
-       <button class="btn" id="addAppliancesBtn" style="margin-top:8px">Lägg till apparater</button>`
+       <p class="total-saving-lead">${L().noAppliancesText}</p>
+       <button class="btn" id="addAppliancesBtn" style="margin-top:8px">${L().addAppliancesBtn}</button>`
     : (totalSaving <= 0.005
         ? `${priceCommentHtml}
-           <p class="total-saving-lead">Priset är i princip oförändrat hela dygnet – ingen skillnad att hämta hem idag.</p>`
-        : `<p class="total-saving-eyebrow">Följ <b>mina råd</b> – bara idag kan du spara:</p>
+           <p class="total-saving-lead">${L().noSavingToday}</p>`
+        : `<p class="total-saving-eyebrow">${L().followAdvice}</p>
            <p class="total-saving-amt-line">
              <span class="total-saving-amt num">${fmtKr(totalSavingIncl)}</span>
-             <span class="total-saving-hint">(välj dina apparater i inställningarna)</span>
+             <span class="total-saving-hint">${L().chooseHint}</span>
            </p>
            ${priceCommentHtml}
-           <p class="total-saving-projection">Gör du så här varje dag i en månad har du <b>${fmtKr(totalSavingIncl*30)}</b> extra att göra vad du vill med. Ett helt år av samma sak ger <b>${fmtKr(yearlySaving)}</b> – nog för att äntligen unna dig den där drömmen!</p>
-           <p class="total-saving-lead">Kör ${totalLead} vid ${totalTid}.</p>
+           <p class="total-saving-projection">${L().projection(fmtKr(totalSavingIncl*30), fmtKr(yearlySaving))}</p>
+           <p class="total-saving-lead">${L().runAt(totalLead, totalTid)}</p>
            ${taxNoteHtml}`
       );
 
@@ -781,24 +928,24 @@ function render(){
     ? (()=>{ const h = state.hourly[state.selectedBar];
         return `<span>${whenLabel(h.start)}–${fmtClock(h.end)}</span>
                 <span class="price">${fmtOre(h.price)}</span>
-                <span style="font-size:10px;font-style:italic">${TAX_NOTE}</span>`; })()
-    : `<span>Tryck på en timme i ringen för pris</span>`;
+                <span style="font-size:10px;font-style:italic">${L().taxNoteShort}</span>`; })()
+    : `<span>${L().tapHourHint}</span>`;
 
   const banner = !state.hasTomorrow
-    ? `<div class="banner">Morgondagens priser publiceras ca kl 13.</div>` : '';
+    ? `<div class="banner">${L().tomorrowNotYet}</div>` : '';
 
   /* varning vid riktigt högt pris just nu (>170 öre) */
   const warnBanner = state.hourly[nIdx].price*100 > 170
-    ? `<div class="banner warn">&#9888;&#65039; Mycket högt elpris just nu: ${fmtOre(state.hourly[nIdx].price)}</div>` : '';
+    ? `<div class="banner warn">${L().highPriceWarn(fmtOre(state.hourly[nIdx].price))}</div>` : '';
 
   const priceWidget = `
     <section class="panel">
       <div class="panel-head">
-        <h2>Kommande 24 timmar</h2>
-        <span class="updated num">uppdaterad ${fmtClock(new Date(state.lastFetch))}</span>
+        <h2>${L().hoursHeading}</h2>
+        <span class="updated num">${L().updated(fmtClock(new Date(state.lastFetch)))}</span>
       </div>
       <div class="dial-wrap">
-        <svg id="dialSvg" viewBox="0 0 200 200" width="250" role="img" aria-label="Elpriset kommande 24 timmar">
+        <svg id="dialSvg" viewBox="0 0 200 200" width="250" role="img" aria-label="${L().hoursHeading}">
           <defs>
             <filter id="ringGlow" x="-60%" y="-60%" width="220%" height="220%">
               <feGaussianBlur stdDeviation="14" result="b"/>
@@ -811,7 +958,7 @@ function render(){
           <g class="hub">
             <circle cx="100" cy="100" r="33" fill="${nowCol}"/>
             <text x="100" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="${hubTextCol}">${DNAME[curCls]}</text>
-            <text x="100" y="103" text-anchor="middle" font-size="13" font-weight="700" fill="${hubTextCol}" class="num">${(state.hourly[nIdx].price*100).toLocaleString('sv-SE',{maximumFractionDigits:0})} öre</text>
+            <text x="100" y="103" text-anchor="middle" font-size="13" font-weight="700" fill="${hubTextCol}" class="num">${(state.hourly[nIdx].price*100).toLocaleString(localeTag(),{maximumFractionDigits:0})} öre</text>
             <text x="100" y="115" text-anchor="middle" font-size="8" fill="${hubTextCol}">${hubSub}</text>
           </g>
           ${ticks}
@@ -823,7 +970,7 @@ function render(){
         <span><i style="background:${hslStr(priceHsl(0))}"></i>0–50 öre</span>
         <span><i style="background:${hslStr(priceHsl(50))}"></i>51–129 öre</span>
         <span><i style="background:${hslStr(priceHsl(130))}"></i>130+ öre</span>
-        <span class="tax-note">${TAX_NOTE}</span>
+        <span class="tax-note">${L().taxNoteShort}</span>
       </div>
       ${banner}
     </section>`;
@@ -863,8 +1010,8 @@ function renderCard(id, a, nIdx, w){
     return `<div class="arow" data-app="${id}">
       <span class="arow-icon">${def.icon}</span>
       <div class="arow-txt">
-        <div class="arow-name">${def.name}</div>
-        <div class="arow-headline">Inget fönster i vald tid</div>
+        <div class="arow-name">${appName(def)}</div>
+        <div class="arow-headline">${L().noWindow}</div>
       </div>
     </div>`;
   }
@@ -880,21 +1027,21 @@ function renderCard(id, a, nIdx, w){
   const endBest = new Date(startH.start.getTime() + D*36e5);
 
   const headline = isNow
-    ? `Kör igång <b>nu</b> · <span class="save-amt num">${fmtKr(nowCost)}</span> <span class="tp-label">Totalt pris</span>`
-    : `Vänta till <b>${whenLabel(startH.start)}</b> och spara <span class="save-amt num">${fmtKr(saving)}</span>`;
+    ? `${L().runNow} <b>${L().nowWord}</b> · <span class="save-amt num">${fmtKr(nowCost)}</span> <span class="tp-label">${L().totalPriceLabel}</span>`
+    : `${L().waitUntil} <b>${whenLabel(startH.start)}</b> ${L().andSave} <span class="save-amt num">${fmtKr(saving)}</span>`;
 
   /* visar BÅDA absoluta totalkostnaderna (inte bara besparingen) på var sin
      rad - annars syns aldrig vad det faktiskt kostar att vänta, bara
      skillnaden. */
   const sub = isNow
-    ? `<div>${D} h · ${a.kwh.toLocaleString('sv-SE')} kWh · alla belopp ${TAX_NOTE}</div>`
-    : `<div>Totalkostnad nu (${fmtClock(state.hourly[nIdx].start)}–${fmtClock(endNow)}): <b class="now-cost num">${fmtKr(nowCost)}</b></div>
-       <div>Totalkostnad ${whenLabel(startH.start)} (${fmtClock(startH.start)}–${fmtClock(endBest)}): <b class="wait-cost num">${fmtKr(best.cost)}</b></div>`;
+    ? `<div>${L().fineprint(D, a.kwh.toLocaleString(localeTag()), L().taxNoteShort)}</div>`
+    : `<div>${L().totalCostNowLabel(`${fmtClock(state.hourly[nIdx].start)}–${fmtClock(endNow)}`)} <b class="now-cost num">${fmtKr(nowCost)}</b></div>
+       <div>${L().totalCostAtLabel(whenLabel(startH.start), `${fmtClock(startH.start)}–${fmtClock(endBest)}`)} <b class="wait-cost num">${fmtKr(best.cost)}</b></div>`;
 
   return `<div class="arow" data-app="${id}">
     <span class="arow-icon">${def.icon}</span>
     <div class="arow-txt">
-      <div class="arow-name">${def.name}</div>
+      <div class="arow-name">${appName(def)}</div>
       <div class="arow-headline">${headline}</div>
       <div class="arow-now">${sub}</div>
     </div>
@@ -903,38 +1050,54 @@ function renderCard(id, a, nIdx, w){
 
 /* ============================== setup / inställningar ============================== */
 
-function zoneGrid(container, selected, onPick){
-  container.innerHTML = Object.entries(ZONES).map(([z,name])=>`
-    <div class="zone-opt${z===selected?' sel':''}" data-z="${z}">
-      <span class="z num">${z}</span><span class="zn">${name}</span>
+function optionGrid(container, options, selected, onPick){
+  container.innerHTML = Object.entries(options).map(([k,label])=>`
+    <div class="zone-opt${k===selected?' sel':''}" data-k="${k}">
+      <span class="z num">${k.toUpperCase()}</span><span class="zn">${label}</span>
     </div>`).join('');
   container.querySelectorAll('.zone-opt').forEach(el=>{
     el.addEventListener('click', ()=>{
       container.querySelectorAll('.zone-opt').forEach(o=>o.classList.remove('sel'));
       el.classList.add('sel');
-      onPick(el.dataset.z);
+      onPick(el.dataset.k);
     });
   });
 }
 
 function showSetup(){
   const draft = defaultSettings();
-  zoneGrid($('#setupZones'), draft.zone, z => draft.zone = z);
+  const LS = () => T[draft.lang];
 
-  const grid = $('#setupApps');
-  grid.innerHTML = Object.entries(APP_DEFS).map(([id,d])=>`
-    <div class="app-opt${draft.appliances[id].on?' sel':''}" data-id="${id}">
-      <span class="ai">${d.icon}</span>
-      <span class="an">${d.name}</span>
-      <span class="am num">${d.h} h · ${d.kwh.toLocaleString('sv-SE')} kWh</span>
-    </div>`).join('');
-  grid.querySelectorAll('.app-opt').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      const id = el.dataset.id;
-      draft.appliances[id].on = !draft.appliances[id].on;
-      el.classList.toggle('sel', draft.appliances[id].on);
+  function refreshSetupTexts(){
+    $('#setupHeadingPrefix').textContent = LS().setupHeadingPrefix;
+    $('#setupLead').textContent = LS().setupLead;
+    $('#setupLangHeading').textContent = LS().langHeading;
+    $('#setupZoneHeading').textContent = LS().setupZoneHeading;
+    $('#setupAppsHeading').textContent = LS().setupAppsHeading;
+    $('#setupDone').textContent = LS().setupDone;
+    optionGrid($('#setupZones'), LS().zoneNames, draft.zone, z => draft.zone = z);
+    renderSetupApps();
+  }
+
+  function renderSetupApps(){
+    const grid = $('#setupApps');
+    grid.innerHTML = Object.entries(APP_DEFS).map(([id,d])=>`
+      <div class="app-opt${draft.appliances[id].on?' sel':''}" data-id="${id}">
+        <span class="ai">${d.icon}</span>
+        <span class="an">${appName(d, draft.lang)}</span>
+        <span class="am num">${d.h} h · ${d.kwh.toLocaleString(draft.lang==='en'?'en-GB':'sv-SE')} kWh</span>
+      </div>`).join('');
+    grid.querySelectorAll('.app-opt').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const id = el.dataset.id;
+        draft.appliances[id].on = !draft.appliances[id].on;
+        el.classList.toggle('sel', draft.appliances[id].on);
+      });
     });
-  });
+  }
+
+  optionGrid($('#setupLang'), LANG_NAMES, draft.lang, code => { draft.lang = code; refreshSetupTexts(); });
+  refreshSetupTexts();
 
   $('#setupDone').onclick = ()=>{
     state.settings = draft;
@@ -947,48 +1110,65 @@ function showSetup(){
 
 function showSettings(){
   const draft = JSON.parse(JSON.stringify(state.settings));
-  zoneGrid($('#settingsZones'), draft.zone, z => draft.zone = z);
+  const LS = () => T[draft.lang];
 
-  $('#settingsApps').innerHTML = Object.entries(APP_DEFS).map(([id,d])=>{
-    const a = draft.appliances[id];
-    /* apparater med laddeffekt (just nu bara elbil) matar in kW istället för
-       kWh direkt - kWh räknas ut som kw × h så en längre laddtid inte av
-       misstag lämnar kvar ett kWh-värde som gällde för en helt annan tid */
-    const kwhSlot = d.kw != null
-      ? `<span><label>laddeffekt kW</label>
-          <input type="number" class="in-kw" min="1" max="50" step="0.1" value="${a.kw}"></span>`
-      : `<span><label>kWh</label>
-          <input type="number" class="in-kwh" min="0.1" max="200" step="0.1" value="${a.kwh}"></span>`;
-    const kwhHint = d.kw != null
-      ? `<div class="kwh-hint" style="grid-column:1/-1;font-size:10px;color:var(--muted);text-align:right">≈ <span class="kwh-calc">${(a.kw*a.h).toFixed(1)}</span> kWh totalt</div>`
-      : '';
-    return `
-    <div class="set-row" data-id="${id}">
-      <span class="si">${d.icon}</span>
-      <span class="sn">${d.name}</span>
-      <input type="checkbox" class="in-on" ${a.on?'checked':''}>
-      <span class="inputs">
-        <span><label>timmar</label>
-          <input type="number" class="in-h" min="1" max="12" step="1" value="${a.h}"></span>
-        ${kwhSlot}
-        <span><label>från kl</label>
-          <input type="number" class="in-from" min="0" max="23" step="1" value="${a.from}"></span>
-        <span><label>till kl</label>
-          <input type="number" class="in-to" min="1" max="24" step="1" value="${a.to}"></span>
-      </span>
-      ${kwhHint}
-    </div>`;
-  }).join('');
+  function refreshSettingsTexts(){
+    $('#settingsHeading').textContent = LS().settingsHeading;
+    $('#settingsLangHeading').textContent = LS().langHeading;
+    $('#settingsZoneHeading').textContent = LS().settingsZoneHeading;
+    $('#settingsAppsHeading').textContent = LS().settingsAppsHeading;
+    $('#settingsAppsLead').textContent = LS().settingsAppsLead;
+    $('#settingsSave').textContent = LS().settingsSave;
+    $('#settingsCancel').textContent = LS().settingsCancel;
+    optionGrid($('#settingsZones'), LS().zoneNames, draft.zone, z => draft.zone = z);
+    renderSettingsApps();
+  }
 
-  $('#settingsApps').querySelectorAll('.set-row').forEach(row=>{
-    const kwEl = row.querySelector('.in-kw');
-    if(!kwEl) return;
-    const hEl = row.querySelector('.in-h');
-    const calcEl = row.querySelector('.kwh-calc');
-    const update = ()=>{ calcEl.textContent = (Math.max(0,+kwEl.value||0) * Math.max(0,+hEl.value||0)).toFixed(1); };
-    kwEl.addEventListener('input', update);
-    hEl.addEventListener('input', update);
-  });
+  function renderSettingsApps(){
+    $('#settingsApps').innerHTML = Object.entries(APP_DEFS).map(([id,d])=>{
+      const a = draft.appliances[id];
+      /* apparater med laddeffekt (just nu bara elbil) matar in kW istället för
+         kWh direkt - kWh räknas ut som kw × h så en längre laddtid inte av
+         misstag lämnar kvar ett kWh-värde som gällde för en helt annan tid */
+      const kwhSlot = d.kw != null
+        ? `<span><label>${LS().chargingPowerLabel}</label>
+            <input type="number" class="in-kw" min="1" max="50" step="0.1" value="${a.kw}"></span>`
+        : `<span><label>kWh</label>
+            <input type="number" class="in-kwh" min="0.1" max="200" step="0.1" value="${a.kwh}"></span>`;
+      const kwhHint = d.kw != null
+        ? `<div class="kwh-hint" style="grid-column:1/-1;font-size:10px;color:var(--muted);text-align:right">≈ <span class="kwh-calc">${(a.kw*a.h).toFixed(1)}</span> ${LS().kwhTotalWord}</div>`
+        : '';
+      return `
+      <div class="set-row" data-id="${id}">
+        <span class="si">${d.icon}</span>
+        <span class="sn">${appName(d, draft.lang)}</span>
+        <input type="checkbox" class="in-on" ${a.on?'checked':''}>
+        <span class="inputs">
+          <span><label>${LS().hoursLabel}</label>
+            <input type="number" class="in-h" min="1" max="12" step="1" value="${a.h}"></span>
+          ${kwhSlot}
+          <span><label>${LS().fromLabel}</label>
+            <input type="number" class="in-from" min="0" max="23" step="1" value="${a.from}"></span>
+          <span><label>${LS().toLabel}</label>
+            <input type="number" class="in-to" min="1" max="24" step="1" value="${a.to}"></span>
+        </span>
+        ${kwhHint}
+      </div>`;
+    }).join('');
+
+    $('#settingsApps').querySelectorAll('.set-row').forEach(row=>{
+      const kwEl = row.querySelector('.in-kw');
+      if(!kwEl) return;
+      const hEl = row.querySelector('.in-h');
+      const calcEl = row.querySelector('.kwh-calc');
+      const update = ()=>{ calcEl.textContent = (Math.max(0,+kwEl.value||0) * Math.max(0,+hEl.value||0)).toFixed(1); };
+      kwEl.addEventListener('input', update);
+      hEl.addEventListener('input', update);
+    });
+  }
+
+  optionGrid($('#settingsLang'), LANG_NAMES, draft.lang, code => { draft.lang = code; refreshSettingsTexts(); });
+  refreshSettingsTexts();
 
   $('#settingsSave').onclick = ()=>{
     document.querySelectorAll('#settingsApps .set-row').forEach(row=>{
@@ -1010,6 +1190,7 @@ function showSettings(){
     state.settings = draft;
     saveSettings();
     $('#settingsOverlay').classList.remove('show');
+    applyChrome();
     if(zoneChanged) init(); else render();
   };
   $('#settingsCancel').onclick = ()=> $('#settingsOverlay').classList.remove('show');
@@ -1018,8 +1199,20 @@ function showSettings(){
 
 /* ============================== start & uppdatering ============================== */
 
+/* header/footer-text som lever utanför render() (synligt även under setup) */
+function applyChrome(){
+  document.documentElement.lang = curLang();
+  $('#zoneChip').setAttribute('aria-label', L().zoneAria);
+  $('#langChip').setAttribute('aria-label', L().langAria);
+  $('#langChip').textContent = curLang().toUpperCase();
+  $('#settingsBtn').setAttribute('aria-label', L().settingsAria);
+  installBtn.textContent = L().installBtnLabel;
+  $('#footerSourceText').textContent = L().footerSource;
+  $('#footerDonate').textContent = L().footerDonate;
+}
+
 async function init(){
-  $('#content').innerHTML = `<div class="state"><div class="spin"></div>Hämtar elpriser …</div>`;
+  $('#content').innerHTML = `<div class="state"><div class="spin"></div>${L().fetching}</div>`;
   try{
     await loadPrices();
   }catch(e){
@@ -1048,13 +1241,13 @@ installBtn.addEventListener('click', async ()=>{
     if(r.outcome === 'accepted') installBtn.hidden = true;
     deferredInstall = null;
   }else{
+    $('#installHeadingPrefix').textContent = L().installHeadingPrefix;
+    $('#installHeadingAccent').textContent = L().installHeadingAccent;
+    $('#installLead').textContent = L().installLead;
+    $('#installClose').textContent = L().installClose;
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    $('#installSteps').innerHTML = isIOS
-      ? `<li>Öppna sidan i <b>Safari</b> (om du inte redan gjort det)</li>
-         <li>Tryck på <b>dela-ikonen</b> <span style="font-size:17px">&#x2B06;&#xFE0E;</span> i verktygsfältet</li>
-         <li>Välj <b>”Lägg till på hemskärmen”</b> och tryck <b>Lägg till</b></li>`
-      : `<li>Öppna webbläsarens meny <b>⋮</b></li>
-         <li>Välj <b>”Lägg till på startskärmen”</b> eller <b>”Installera app”</b></li>`;
+    const steps = isIOS ? L().installStepsIOS : L().installStepsAndroid;
+    $('#installSteps').innerHTML = steps.map(s=>`<li>${s}</li>`).join('');
     $('#installOverlay').classList.add('show');
   }
 });
@@ -1066,8 +1259,16 @@ if('serviceWorker' in navigator){
 
 $('#settingsBtn').addEventListener('click', showSettings);
 $('#zoneChip').addEventListener('click', showSettings);
+$('#langChip').addEventListener('click', ()=>{
+  if(!state.settings) return;
+  state.settings.lang = state.settings.lang === 'en' ? 'sv' : 'en';
+  saveSettings();
+  applyChrome();
+  render();
+});
 
 state.settings = loadSettings();
+applyChrome();
 if(!state.settings){
   showSetup();
 }else{
