@@ -182,7 +182,7 @@
   .arow-now .wait-cost{color:var(--cheap);font-weight:700}
   .arow-seltime{font-size:14px;font-weight:700;color:var(--priceblue);margin-bottom:4px}
   .arow-seltime .sel-amt{
-    font-weight:800;
+    font-size:22px;font-weight:800;
     animation:selGlow 2.4s ease-in-out infinite;
   }
   @keyframes selGlow{
@@ -190,6 +190,8 @@
     50%{filter:brightness(1.4);text-shadow:0 0 14px rgba(91,195,232,.65)}
   }
   @media (prefers-reduced-motion: reduce){.arow-seltime .sel-amt{animation:none}}
+  .arow-bestcmp{font-size:13px;color:var(--muted);margin-top:2px}
+  .arow-bestcmp .best-amt{color:var(--cheap);font-weight:800;font-size:19px}
   .selbanner{
     background:rgba(91,195,232,.12);border:1px solid rgba(91,195,232,.4);
     border-radius:10px;padding:8px 12px;font-size:12.5px;margin-bottom:10px;
@@ -420,6 +422,7 @@ const T = {
     tapHourHint:'Tryck på en sektion i ringen för att se vad dina apparater skulle kosta vid den tiden',
     selBanner:time=>`⏱ Du tittar på <b>${time}</b> — <span class="back">tryck på trafikljuset i mitten för att gå tillbaka till nu</span>`,
     totalCostSelLabel:(time,range)=>`Totalkostnad vid vald tid, ${time} (${range}):`,
+    bestTimeCompare:(time,range)=>`Jämfört med bästa tiden, ${time} (${range}):`,
     tomorrowNotYet:'Morgondagens priser publiceras ca kl 13.',
     highPriceWarn:p=>`&#9888;&#65039; Mycket högt elpris just nu: ${p}`,
     dName:{cheap:'LÅG', mid:'MEDEL', dear:'HÖG'},
@@ -504,6 +507,7 @@ const T = {
     tapHourHint:'Tap a section of the ring to see what your appliances would cost at that time',
     selBanner:time=>`⏱ You're looking at <b>${time}</b> — <span class="back">tap the traffic light in the middle to go back to now</span>`,
     totalCostSelLabel:(time,range)=>`Total cost at your chosen time, ${time} (${range}):`,
+    bestTimeCompare:(time,range)=>`Compared to the best time, ${time} (${range}):`,
     tomorrowNotYet:'Tomorrow’s prices are published around 1 PM.',
     highPriceWarn:p=>`&#9888;&#65039; Very high electricity price right now: ${p}`,
     dName:{cheap:'LOW', mid:'MED', dear:'HIGH'},
@@ -1082,17 +1086,24 @@ function renderCard(id, a, nIdx, w){
     : `<div>${L().totalCostNowLabel(`${fmtClock(state.hourly[nIdx].start)}–${fmtClock(endNow)}`)} <b class="now-cost num">${fmtKr(nowCost)}</b></div>
        <div>${L().totalCostAtLabel(whenLabel(startH.start), `${fmtClock(startH.start)}–${fmtClock(endBest)}`)} <b class="wait-cost num">${fmtKr(best.cost)}</b></div>`;
 
-  /* blå rad ÖVERST i raden när användaren valt en timme i ringen: vad DEN
-     starttiden skulle kosta för just den här apparaten - större, fet och
-     med pulserande pris så vad-om-svaret är det första ögat landar på */
-  let selLine = '';
+  /* vad-om-läge: när användaren valt en timme i ringen ERSÄTTER raden hela
+     sitt vanliga innehåll med den valda tidens totalkostnad (stor, fet,
+     pulserande blå) + en jämförelserad mot bästa tiden - den vanliga
+     rekommendationen är irrelevant brus medan man utforskar en annan tid */
   const selIdx = state.selectedBar;
   if(selIdx != null && selIdx !== nIdx){
     const selCost = costStartingAt(a, selIdx);
     if(selCost != null){
       const selStart = state.hourly[selIdx].start;
       const selEnd = new Date(selStart.getTime() + D*36e5);
-      selLine = `<div class="arow-seltime">${L().totalCostSelLabel(whenLabel(selStart), `${fmtClock(selStart)}–${fmtClock(selEnd)}`)} <span class="sel-amt num">${fmtKr(selCost)}</span></div>`;
+      return `<div class="arow" data-app="${id}">
+        <span class="arow-icon">${def.icon}</span>
+        <div class="arow-txt">
+          <div class="arow-name">${appName(def)}</div>
+          <div class="arow-seltime">${L().totalCostSelLabel(whenLabel(selStart), `${fmtClock(selStart)}–${fmtClock(selEnd)}`)} <span class="sel-amt num">${fmtKr(selCost)}</span></div>
+          <div class="arow-bestcmp">${L().bestTimeCompare(whenLabel(startH.start), `${fmtClock(startH.start)}–${fmtClock(endBest)}`)} <b class="best-amt num">${fmtKr(best.cost)}</b></div>
+        </div>
+      </div>`;
     }
   }
 
@@ -1100,7 +1111,6 @@ function renderCard(id, a, nIdx, w){
     <span class="arow-icon">${def.icon}</span>
     <div class="arow-txt">
       <div class="arow-name">${appName(def)}</div>
-      ${selLine}
       <div class="arow-headline">${headline}</div>
       <div class="arow-now">${sub}</div>
     </div>
