@@ -592,10 +592,16 @@ const state = {
 };
 function curLang(){ return (state.settings && state.settings.lang) || 'sv'; }
 
+/* apparater som är påslagna direkt för en ny användare, så man landar på en
+   dashboard med riktiga rekommendationer istället för en tom lista - ett
+   brett, representativt urval (bil/dusch/vitvaror/dator/utomhus/bastu),
+   inte bara de tre vanligaste. Användaren kan alltid slå av/på i inställningar. */
+const DEFAULT_ON_APPLIANCES = ['ev','vvb','dish','wash','gaming','mower','sauna'];
+
 function defaultSettings(){
   const appliances = {};
   for(const [id,d] of Object.entries(APP_DEFS)){
-    appliances[id] = {on: ['dish','wash','dry'].includes(id), h:d.h, kwh:d.kwh, from:d.from ?? 0, to:d.to ?? 24};
+    appliances[id] = {on: DEFAULT_ON_APPLIANCES.includes(id), h:d.h, kwh:d.kwh, from:d.from ?? 0, to:d.to ?? 24};
     if(d.kw != null) appliances[id].kw = d.kw;
   }
   return {zone:'SE3', lang:'sv', appliances};
@@ -1336,13 +1342,17 @@ $('#langChip').addEventListener('click', ()=>{
   render();
 });
 
+/* nya besökare hoppar rakt in i dashboarden med ett vettigt urval apparater
+   redan påslaget (DEFAULT_ON_APPLIANCES) istället för att tvingas genom
+   inställningsvyn först - setup-sheeten (showSetup) finns kvar i koden om
+   den behövs igen, men körs inte längre automatiskt vid första besöket. */
 state.settings = loadSettings();
-applyChrome();
 if(!state.settings){
-  showSetup();
-}else{
-  init();
+  state.settings = defaultSettings();
+  saveSettings();
 }
+applyChrome();
+init();
 
 /* varje minut: flytta NU-markören / byt timme; var 15:e min eller när
    morgondagens priser saknas efter kl 12:45 – hämta om */
