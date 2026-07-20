@@ -1111,6 +1111,18 @@ function renderCard(id, a, nIdx, w){
         </div>
       </div>`;
     }
+    /* inte tillräckligt många prisade timmar kvar från vald starttid för att
+       rymma HELA apparatens körtid (t.ex. Elbils 6 h nära slutet av
+       prisfönstret) - visa det ärligt istället för att tyst falla tillbaka
+       till det vanliga vänta/kör-kortet, vilket annars ser ut som att
+       valet av tid inte gjorde något alls för just den apparaten */
+    return `<div class="arow" data-app="${id}">
+      <span class="arow-icon">${def.icon}</span>
+      <div class="arow-txt">
+        <div class="arow-name">${appName(def)}</div>
+        <div class="arow-headline">${L().noWindow}</div>
+      </div>
+    </div>`;
   }
 
   return `<div class="arow" data-app="${id}">
