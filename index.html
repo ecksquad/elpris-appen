@@ -369,22 +369,28 @@ const LANG_NAMES = {sv:'Svenska', en:'English'};
    kontext i besparingsrutan, inte inräknade i sparbeloppet. */
 const ZONE_TAX_ORE = { SE1: 35, SE2: 45, SE3: 68, SE4: 73 };
 
+/* ALLA apparater matar nu in en genomsnittlig effekt (kW) precis som elbil
+   gjorde tidigare - kwh nedan är bara den konsekventa kw×h-produkten som
+   fylls i som förvalt värde (defaultSettings/loadSettings räknar aldrig om
+   den självmant; det gör bara showSettings när användaren ändrar kW/timmar
+   för hand). Effekterna är grova men rimliga snittvärden per apparattyp,
+   INTE en specifik modells märkeffekt. */
 const APP_DEFS = {
-  dish:   {name:'Diskmaskin',         nameEn:'Dishwasher',            icon:'🍽️', h:2, kwh:1.2},
-  wash:   {name:'Tvättmaskin',        nameEn:'Washing machine',       icon:'👕', h:3, kwh:1.0},
-  dry:    {name:'Torktumlare',        nameEn:'Tumble dryer',          icon:'🌀', h:2, kwh:2.5},
-  ev:     {name:'Elbil',              nameEn:'Electric car',          icon:'🚗', h:6, kwh:48, kw:8}, // laddeffekt (kW) - kWh räknas ut som kw × h
-  phev:   {name:'Laddhybrid',         nameEn:'Plug-in hybrid',        icon:'🔌', h:3, kwh:11},   // 3,7 kW × 3 h
-  vvb:    {name:'Dusch',              nameEn:'Shower',                icon:'🚿', h:3, kwh:9, from:6, to:22},
-  sauna:  {name:'Bastu',              nameEn:'Sauna',                 icon:'🧖', h:2, kwh:12},
-  pool:   {name:'Poolpump',           nameEn:'Pool pump',             icon:'🏊', h:6, kwh:4.5},
-  spa:    {name:'Spabad',             nameEn:'Hot tub',               icon:'🛁', h:4, kwh:8},
-  floor:  {name:'Golvvärme (boost)',  nameEn:'Floor heating (boost)', icon:'🔥', h:4, kwh:6},
-  vacuum: {name:'Robotdammsugare',    nameEn:'Robot vacuum',          icon:'🧹', h:1, kwh:0.1},
-  mower:  {name:'Robotgräsklippare',  nameEn:'Robot lawn mower',      icon:'🌱', h:3, kwh:0.3, from:7, to:20},
-  laptop: {name:'Laptop',             nameEn:'Laptop',                icon:'💻', h:2, kwh:0.1},   // ~55 W laddare × 2 h
-  gaming: {name:'Gaming-PC',          nameEn:'Gaming PC',             icon:'🎮', h:4, kwh:1.4},   // ~350 W snitt under spel × 4 h
-  tv:     {name:'TV',                 nameEn:'TV',                    icon:'📺', h:4, kwh:0.32}   // ~80 W snitt för en 50" LED-LCD × 4 h
+  dish:   {name:'Diskmaskin',         nameEn:'Dishwasher',            icon:'🍽️', h:2,   kwh:1.2,  kw:0.6},  // diskmaskin, snittdrag under cykeln
+  wash:   {name:'Tvättmaskin',        nameEn:'Washing machine',       icon:'👕', h:2,   kwh:1.0,  kw:0.5},  // tvätt ~40-60°, snitt över cykeln
+  dry:    {name:'Torktumlare',        nameEn:'Tumble dryer',          icon:'🌀', h:2,   kwh:2.5,  kw:1.25}, // torktumlare, snitt över cykeln
+  ev:     {name:'Elbil',              nameEn:'Electric car',          icon:'🚗', h:6,   kwh:48,   kw:8},    // elbilsladdning, trefas hemmaladdare
+  phev:   {name:'Laddhybrid',         nameEn:'Plug-in hybrid',        icon:'🔌', h:6,   kwh:10.8, kw:1.8},  // laddhybrid, vanligt eluttag över natten
+  vvb:    {name:'Dusch',              nameEn:'Shower',                icon:'🚿', h:0.2, kwh:0.6,  kw:3, from:6, to:22}, // varmvattenberedarens boost för en dusch
+  sauna:  {name:'Bastu',              nameEn:'Sauna',                 icon:'🧖', h:2,   kwh:12,   kw:6},    // bastuaggregat
+  pool:   {name:'Poolpump',           nameEn:'Pool pump',             icon:'🏊', h:6,   kwh:4.5,  kw:0.75}, // poolpump, daglig drifttid
+  spa:    {name:'Spabad',             nameEn:'Hot tub',               icon:'🛁', h:1,   kwh:2.0,  kw:2},    // spabad, uppvärmningsboost
+  floor:  {name:'Golvvärme (boost)',  nameEn:'Floor heating (boost)', icon:'🔥', h:8,   kwh:12.0, kw:1.5},  // golvvärme, nattboost
+  vacuum: {name:'Robotdammsugare',    nameEn:'Robot vacuum',          icon:'🧹', h:2,   kwh:0.2,  kw:0.1},  // robotdammsugare
+  mower:  {name:'Robotgräsklippare',  nameEn:'Robot lawn mower',      icon:'🌱', h:6,   kwh:0.6,  kw:0.1,  from:7, to:20}, // robotgräsklippare, dagens klipptid
+  laptop: {name:'Laptop',             nameEn:'Laptop',                icon:'💻', h:2,   kwh:0.1,  kw:0.05}, // laptopladdare
+  gaming: {name:'Gaming-PC',          nameEn:'Gaming PC',             icon:'🎮', h:4,   kwh:1.4,  kw:0.35}, // gaming-pc, snitt under spel
+  tv:     {name:'TV',                 nameEn:'TV',                    icon:'📺', h:3,   kwh:0.24, kw:0.08}  // TV, ~80 W snitt för en 50" LED-LCD
 };
 function appName(def, lang){ return (lang || curLang())==='en' && def.nameEn ? def.nameEn : def.name; }
 
@@ -1219,7 +1225,7 @@ function showSettings(){
          misstag lämnar kvar ett kWh-värde som gällde för en helt annan tid */
       const kwhSlot = d.kw != null
         ? `<span><label>${LS().chargingPowerLabel}</label>
-            <input type="number" class="in-kw" min="1" max="50" step="0.1" value="${a.kw}"></span>`
+            <input type="number" class="in-kw" min="0.01" max="50" step="0.01" value="${a.kw}"></span>`
         : `<span><label>kWh</label>
             <input type="number" class="in-kwh" min="0.1" max="200" step="0.1" value="${a.kwh}"></span>`;
       const kwhHint = d.kw != null
@@ -1232,7 +1238,7 @@ function showSettings(){
         <input type="checkbox" class="in-on" ${a.on?'checked':''}>
         <span class="inputs">
           <span><label>${LS().hoursLabel}</label>
-            <input type="number" class="in-h" min="1" max="12" step="1" value="${a.h}"></span>
+            <input type="number" class="in-h" min="0.1" max="12" step="0.1" value="${a.h}"></span>
           ${kwhSlot}
           <span><label>${LS().fromLabel}</label>
             <input type="number" class="in-from" min="0" max="23" step="1" value="${a.from}"></span>
@@ -1261,11 +1267,11 @@ function showSettings(){
     document.querySelectorAll('#settingsApps .set-row').forEach(row=>{
       const a = draft.appliances[row.dataset.id];
       a.on   = row.querySelector('.in-on').checked;
-      a.h    = Math.min(12, Math.max(1, Math.round(+row.querySelector('.in-h').value || a.h)));
+      a.h    = Math.min(12, Math.max(0.1, +row.querySelector('.in-h').value || a.h));
       const kwEl = row.querySelector('.in-kw');
       if(kwEl){
-        a.kw  = Math.min(50, Math.max(1, +kwEl.value || a.kw));
-        a.kwh = +(a.kw * a.h).toFixed(1);
+        a.kw  = Math.min(50, Math.max(0.01, +kwEl.value || a.kw));
+        a.kwh = +(a.kw * a.h).toFixed(2);
       }else{
         a.kwh = Math.min(200, Math.max(0.1, +row.querySelector('.in-kwh').value || a.kwh));
       }
