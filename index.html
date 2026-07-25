@@ -44,7 +44,41 @@
     --mid:#e0b23e;
     --dear:#d15050;
     --priceblue:#5bc3e8;
+    --warn-bg:rgba(209,80,80,.16);
+    --warn-text:#ea8f8f;
     --radius:16px;
+  }
+  /* Light mode - only --priceblue and the warning banner need real
+     re-tuning rather than a simple darken/lighten: --priceblue is a pale
+     glow colour picked for contrast against near-black and would be nearly
+     invisible as text on a light background, and .banner.warn's colours
+     were hardcoded (not var()-based) assuming a dark backdrop. Everything
+     else (accent/cheap/mid/dear) keeps its hue - those already have enough
+     contrast on white and changing brand colours between themes would feel
+     inconsistent. */
+  :root[data-theme="light"]{
+    color-scheme:light;
+    --bg:#f7f5f1;
+    --card:#ffffff;
+    --card-2:#efece6;
+    --line:#ddd7cd;
+    --text:#1e1c19;
+    --muted:#6b665e;
+    --priceblue:#0e84ab;
+    --warn-bg:rgba(193,66,66,.12);
+    --warn-text:#a53a3a;
+  }
+  :root[data-theme="dark"]{
+    color-scheme:dark;
+    --bg:#121214;
+    --card:#1b1b1f;
+    --card-2:#232329;
+    --line:#2c2c33;
+    --text:#f2efe9;
+    --muted:#9a968f;
+    --priceblue:#5bc3e8;
+    --warn-bg:rgba(209,80,80,.16);
+    --warn-text:#ea8f8f;
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   html{color-scheme:dark}
@@ -125,7 +159,7 @@
     border-radius:10px;padding:7px 10px;margin-top:10px;
   }
   .banner.warn{
-    background:rgba(209,80,80,.16);color:#ea8f8f;font-weight:600;
+    background:var(--warn-bg);color:var(--warn-text);font-weight:600;
     font-size:13px;text-align:center;margin-top:4px;
   }
 
@@ -288,6 +322,7 @@
     <button class="zone-chip num" id="zoneChip" aria-label="Byt elområde">SE3</button>
     <button class="zone-chip" id="langChip" aria-label="Byt språk">SV</button>
     <button class="chip-btn" id="installBtn" hidden>📲 Spara</button>
+    <button class="icon-btn" id="themeToggleBtn" aria-label="Ljust/mörkt läge">🌙</button>
     <button class="icon-btn" id="settingsBtn" aria-label="Inställningar">⚙︎</button>
   </header>
 
@@ -356,6 +391,25 @@
 /* ============================== data & state ============================== */
 
 const STORE_KEY = 'elprisAppen.v1';
+
+/* Ljust/mörkt läge - applied immediately (before anything else runs) so
+   there's no flash of the wrong theme on load. */
+const THEME_KEY = 'elprisAppen.theme';
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('themeToggleBtn');
+  if(btn) btn.textContent = theme === 'light' ? '☀️' : '🌙';
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.setAttribute('content', theme === 'light' ? '#f7f5f1' : '#121214');
+  try{ localStorage.setItem(THEME_KEY, theme); }catch(e){}
+}
+function currentTheme(){
+  let stored = null;
+  try{ stored = localStorage.getItem(THEME_KEY); }catch(e){}
+  if(stored === 'light' || stored === 'dark') return stored;
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+applyTheme(currentTheme());
 
 const ZONE_KEYS = ['SE1','SE2','SE3','SE4'];
 const LANG_NAMES = {sv:'Svenska', en:'English'};
@@ -1350,6 +1404,9 @@ if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 
+$('#themeToggleBtn').addEventListener('click', ()=>{
+  applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+});
 $('#settingsBtn').addEventListener('click', showSettings);
 $('#zoneChip').addEventListener('click', showSettings);
 $('#langChip').addEventListener('click', ()=>{
