@@ -129,31 +129,24 @@
   .panel-head{display:flex;align-items:baseline;gap:8px;margin-bottom:10px}
   .panel-head h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
   .updated{margin-left:auto;font-size:11px;color:var(--muted)}
-  .dial-wrap{display:flex;justify-content:center;padding:4px 0}
-  .dial-wrap svg{max-width:100%;height:auto}
-  .dial-wrap .wedge{cursor:pointer}
-  .dial-wrap .wedge.sel{stroke:var(--text);stroke-width:2}
-  /* ringen och navet andas i takt med sparbeloppet - navet får en mjukare,
-     mer diffus glöd (större blur) än ringen som bara ljusnar lite */
-  .dial-wrap .ring{ animation: ringPulse 2.4s ease-in-out infinite; transform-origin:100px 100px; }
-  .dial-wrap .hub{ animation: hubPulse 2.4s ease-in-out infinite; transform-origin:100px 100px; cursor:pointer; }
-  @keyframes ringPulse{
-    0%,100%{ filter:brightness(1); }
-    50%{ filter:brightness(1.3); }
-  }
-  @keyframes hubPulse{
-    0%,100%{ filter:brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)); }
-    50%{ filter:brightness(1.45) drop-shadow(0 0 10px rgba(255,255,255,.6)); }
-  }
-  @media (prefers-reduced-motion: reduce){ .dial-wrap .ring, .dial-wrap .hub{ animation:none; } }
+  /* ---- stapelwidget, portad från speglens MMM-ElprisWidget ---- */
+  .ew-top{display:flex;align-items:baseline;gap:8px;margin-top:2px}
+  .ew-num{font-size:56px;font-weight:700;line-height:1}
+  .ew-unit{font-size:13px;color:var(--muted)}
+  .ew-bars{display:flex;align-items:flex-end;gap:3px;height:84px;margin:18px 0 10px}
+  .ew-bars .ew-bar{flex:1;min-width:2px;border-radius:2px 2px 0 0;cursor:pointer;position:relative}
+  .ew-bars .ew-bar.now{outline:2px solid var(--text);outline-offset:1px}
+  .ew-bars .ew-bar.sel{outline:2px solid var(--accent);outline-offset:1px}
+  .ew-flag{position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);font-size:10px;font-weight:700;white-space:nowrap;font-family:'Barlow Condensed',sans-serif}
+  .ew-foot{font-size:13px;color:var(--muted)}
+  .ew-foot b{font-weight:700;color:var(--text)}
+  .ew-foot + .ew-foot{margin-top:2px}
+  .tax-note-line{font-size:10px;color:var(--muted);opacity:.85;font-style:italic;margin-top:6px}
   .tl-info{
     margin-top:10px;min-height:22px;font-size:13px;color:var(--muted);
     display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;
   }
   .tl-info .price{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:600;color:var(--text)}
-  .legend{display:flex;gap:12px;margin-top:8px;font-size:11px;color:var(--muted);align-items:center}
-  .legend i{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:4px;vertical-align:-1px}
-  .tax-note{font-size:10px;color:var(--muted);opacity:.85;margin-left:auto;font-style:italic}
   .banner{
     font-size:12px;color:var(--muted);background:var(--card-2);
     border-radius:10px;padding:7px 10px;margin-top:10px;
@@ -421,8 +414,8 @@ const LANG_NAMES = {sv:'Svenska', en:'English'};
    räkna ut apparaternas FAKTISKA kr-kostnad (nätavgift+energiskatt, sedan
    moms på alltihop) - eftersom det är en flat avgift per kWh påverkar den
    aldrig VILKEN timme som är billigast, bara det absoluta kronbeloppet.
-   Ringens öre/kWh-visning (priceHsl m.fl. längre ner) fortsätter visa rent
-   spotpris, kalibrerat mot verklig spotprisdata. */
+   Stapeldiagrammets öre/kWh-visning (zoneColor m.fl. längre ner) fortsätter
+   visa rent spotpris, inte denna flata avgift. */
 const ZONE_TAX_ORE = { SE1: 35, SE2: 45, SE3: 68, SE4: 73 };
 
 /* ALLA apparater matar nu in en genomsnittlig effekt (kW) precis som elbil
@@ -480,15 +473,13 @@ const T = {
     settingsSave:'Spara', settingsCancel:'Avbryt',
     hoursLabel:'timmar', chargingPowerLabel:'laddeffekt kW', fromLabel:'från kl', toLabel:'till kl', kwhTotalWord:'kWh totalt',
     zoneNames:{SE1:'Norra Sverige', SE2:'Norra Mellansverige', SE3:'Södra Mellansverige', SE4:'Södra Sverige'},
-    hoursHeading:'Kommande 24 timmar', updated:t=>`uppdaterad ${t}`,
-    tapHourHint:'Tryck på en sektion i ringen för att se vad dina apparater skulle kosta vid den tiden',
-    selBanner:time=>`⏱ Du tittar på <b>${time}</b> — <span class="back">tryck på trafikljuset i mitten för att gå tillbaka till nu</span>`,
+    updated:t=>`uppdaterad ${t}`,
+    tapHourHint:'Tryck på en stapel för att se vad dina apparater skulle kosta vid den tiden',
+    selBanner:time=>`⏱ Du tittar på <b>${time}</b> — <span class="back">tryck på stapeln igen för att gå tillbaka till nu</span>`,
     totalCostSelLabel:(time,range)=>`Totalkostnad vid vald tid, ${time} (${range}):`,
     bestTimeCompare:(time,range)=>`Jämfört med bästa tiden, ${time} (${range}):`,
     tomorrowNotYet:'Morgondagens priser publiceras ca kl 13.',
     highPriceWarn:p=>`&#9888;&#65039; Mycket högt elpris just nu: ${p}`,
-    dName:{cheap:'LÅG', mid:'MEDEL', dear:'HÖG'},
-    hubOkNow:'läge att köra', hubGreenIn:h=>`grönt om ${h} h`, hubNoGreen:'inga gröna timmar',
     dayComments:{
       cheap:[
         'Grön dag – det spelar inte så stor roll när du kör igång.',
@@ -531,6 +522,8 @@ const T = {
     hungerGames:' Känns besparingen futtig? Det är för att elpriset just nu nästan alltid är lågt och jämnt i din zon. Testa att byta till SE3 eller SE4 i inställningarna och se hur mycket appen kan spara där – de är typ Distrikt 12 i Hunger Games, längst från den billiga vattenkraften i norr!',
     taxNoteShort:'exkl. skatter och avgifter',
     taxNoteIncl:'inkl. skatter och avgifter',
+    cheapestFoot:(time,ore)=>`Billigast ${time} &middot; <b>${ore} öre</b>`,
+    dearestFoot:(time,ore)=>`Dyrast ${time} &middot; <b>${ore} öre</b>`,
     noWindow:'Inget fönster i vald tid',
     runNow:'Kör igång', nowWord:'nu', totalPriceLabel:'Totalt pris',
     waitUntil:'Vänta till', andSave:'och spara',
@@ -566,15 +559,13 @@ const T = {
     settingsSave:'Save', settingsCancel:'Cancel',
     hoursLabel:'hours', chargingPowerLabel:'charging power kW', fromLabel:'from', toLabel:'to', kwhTotalWord:'kWh total',
     zoneNames:{SE1:'Northern Sweden', SE2:'North central Sweden', SE3:'South central Sweden', SE4:'Southern Sweden'},
-    hoursHeading:'Next 24 hours', updated:t=>`updated ${t}`,
-    tapHourHint:'Tap a section of the ring to see what your appliances would cost at that time',
-    selBanner:time=>`⏱ You're looking at <b>${time}</b> — <span class="back">tap the traffic light in the middle to go back to now</span>`,
+    updated:t=>`updated ${t}`,
+    tapHourHint:'Tap a bar to see what your appliances would cost at that time',
+    selBanner:time=>`⏱ You're looking at <b>${time}</b> — <span class="back">tap the bar again to go back to now</span>`,
     totalCostSelLabel:(time,range)=>`Total cost at your chosen time, ${time} (${range}):`,
     bestTimeCompare:(time,range)=>`Compared to the best time, ${time} (${range}):`,
     tomorrowNotYet:'Tomorrow’s prices are published around 1 PM.',
     highPriceWarn:p=>`&#9888;&#65039; Very high electricity price right now: ${p}`,
-    dName:{cheap:'LOW', mid:'MED', dear:'HIGH'},
-    hubOkNow:'good time now', hubGreenIn:h=>`green in ${h}h`, hubNoGreen:'no green hours',
     dayComments:{
       cheap:[
         'Green day – it barely matters when you run things.',
@@ -617,6 +608,8 @@ const T = {
     hungerGames:' Feels like a puny saving? That’s because electricity is almost always cheap and flat in your zone. Try switching to SE3 or SE4 in settings to see how much the app can save there – they’re basically District 12 in the Hunger Games, farthest from the cheap hydropower up north!',
     taxNoteShort:'excl. taxes and fees',
     taxNoteIncl:'incl. taxes and fees',
+    cheapestFoot:(time,ore)=>`Cheapest ${time} &middot; <b>${ore} öre</b>`,
+    dearestFoot:(time,ore)=>`Priciest ${time} &middot; <b>${ore} öre</b>`,
     noWindow:'No window in the chosen time',
     runNow:'Run it', nowWord:'now', totalPriceLabel:'Total price',
     waitUntil:'Wait until', andSave:'and save',
@@ -862,90 +855,52 @@ function render(){
 
   const nIdx = nowIndex();
 
-  /* --- urtavla: kommande 24 h, trafikljus i navet --- */
+  /* --- 24h stapeldiagram, samma visuella språk som speglens
+     MMM-ElprisWidget (kontinuerlig HSL-gradient, inget tre-stegs
+     klassificerat nav) så att telefon-appen och speglen visar
+     priset på exakt samma sätt. */
   const winEnd = Math.min(nIdx + 24, state.hourly.length);
   const win = state.hourly.slice(nIdx, winEnd);
-  /* fasta prisklasser (öre/kWh): 0–50 grönt, 51–129 gult, 130+ rött */
-  const cls = p => Math.round(p*100) <= 50 ? 'cheap' : Math.round(p*100) <= 129 ? 'mid' : 'dear';
-  const DNAME = L().dName;
   const winOre = win.map(h => Math.round(h.price*100));
   const lowestOre = Math.min(...winOre), highestOre = Math.max(...winOre);
   const spreadOre = highestOre - lowestOre;
   const lerp = (a,b,t) => a + (b-a)*Math.max(0, Math.min(1, t));
-  /* ringens färg är en ren ABSOLUT skala, samma för alla dagar: 0 öre
-     grönt, 50 öre gult, 130 öre rött, med en jämn övertoning däremellan
-     (40 öre blir en gröngul mellanton) - ingen dags-relativ omskalning.
-     Över 130 öre fortsätter samma röda nyans att mörkna ju dyrare det blir,
-     tills den bottnar vid 170 öre - samma nivå där varningsbannern
-     (warnBanner nedan) redan slår till. Samma formel driver navets färg
-     och legendens prickar (se priceHsl/wedgeCol nedan) så ALLT som visar
-     ett pris - ring, nav, legend - alltid är exakt samma nyans vid samma
-     öretal, inte bara "samma kategori". */
-  const PRICE_STOPS = [
-    {o:0,   h:143, s:80, l:52},
-    {o:50,  h:43,  s:88, l:54},
-    {o:130, h:0,   s:78, l:50},
-    {o:170, h:0,   s:85, l:30}
+  /* portat 1:1 från MMM-ElprisWidget.js på speglen - samma brytpunkter
+     och samma hue/sat/lightness, så ett givet öretal alltid får exakt
+     samma nyans på telefonen som på speglen. */
+  const ZONE_PRICE_STOPS = [
+    {o:0,   h:130, s:55, l:48},
+    {o:60,  h:48,  s:70, l:55},
+    {o:90,  h:28,  s:80, l:55},
+    {o:130, h:5,   s:78, l:56},
+    {o:170, h:8,   s:75, l:38},
+    {o:400, h:8,   s:70, l:18}
   ];
-  const priceHsl = ore => {
-    const c = Math.max(PRICE_STOPS[0].o, Math.min(PRICE_STOPS[PRICE_STOPS.length-1].o, ore));
+  const zoneColor = ore => {
+    const c = Math.max(ZONE_PRICE_STOPS[0].o, Math.min(ZONE_PRICE_STOPS[ZONE_PRICE_STOPS.length-1].o, ore));
     let i = 0;
-    while(i < PRICE_STOPS.length-2 && c > PRICE_STOPS[i+1].o) i++;
-    const a = PRICE_STOPS[i], b = PRICE_STOPS[i+1];
+    while(i < ZONE_PRICE_STOPS.length-2 && c > ZONE_PRICE_STOPS[i+1].o) i++;
+    const a = ZONE_PRICE_STOPS[i], b = ZONE_PRICE_STOPS[i+1];
     const t = (c - a.o) / (b.o - a.o);
-    return { h: lerp(a.h, b.h, t), s: lerp(a.s, b.s, t), l: lerp(a.l, b.l, t) };
-  };
-  const hslStr = ({h,s,l}) => `hsl(${h.toFixed(0)},${s.toFixed(0)}%,${l.toFixed(0)}%)`;
-  const wedgeCol = p => hslStr(priceHsl(Math.round(p*100)));
-
-  const arcP = (r,a)=>{ a=(a-90)*Math.PI/180; return [100+r*Math.cos(a), 100+r*Math.sin(a)]; };
-  const wedgeD = (a0,a1,r1,r2)=>{
-    const [x0,y0]=arcP(r2,a0),[x1,y1]=arcP(r2,a1),[x2,y2]=arcP(r1,a1),[x3,y3]=arcP(r1,a0);
-    return `M${x0.toFixed(1)},${y0.toFixed(1)}A${r2},${r2} 0 0 1 ${x1.toFixed(1)},${y1.toFixed(1)}L${x2.toFixed(1)},${y2.toFixed(1)}A${r1},${r1} 0 0 0 ${x3.toFixed(1)},${y3.toFixed(1)}Z`;
+    return `hsl(${lerp(a.h,b.h,t).toFixed(0)},${lerp(a.s,b.s,t).toFixed(0)}%,${lerp(a.l,b.l,t).toFixed(0)}%)`;
   };
 
-  let wedges = '';
-  const baseHour = state.hourly[nIdx].start.getHours();
-  /* gap 5.6° mellan sektionerna (var 1.8°) + kraftigare fillet (stroke 3.06,
-     var 0.9) - valt av användaren ur en 20-variantsgalleri (alternativ 18):
-     bredare luftspalt ger utrymme för en mycket rundare kant utan att
-     stroken bryggar över och slår ihop grannsektionerna till en solid ring */
-  const WEDGE_GAP = 5.6, WEDGE_STROKE = 3.06;
-  const wedgeSpan = 15 - WEDGE_GAP;
-  /* "neon dubbelglöd": varje sektion får en bred, blurrad glödrand bakom sig
-     (opacity .35, blur 3px) plus den skarpa kärnan ovanpå med ett mjukt
-     SVG-filter-glöd - klassiskt neonrörs-trick, valt av användaren ur en
-     5-variantsgalleri. #ringGlow-filtret delas av alla sektioner + navet. */
-  for(let k=0;k<24;k++){
+  const nowOre = winOre[0];
+  /* stapelhöjden skalas mot FÖNSTRETS eget max (takat vid 300 öre så att
+     en enskild topp inte stryker ut resten av dagens variation) - samma
+     logik som speglens widget. */
+  const barMax = Math.min(highestOre, 300);
+  /* första förekomsten om flera timmar delar samma lägsta/högsta pris */
+  const mi = winOre.indexOf(lowestOre), ma = winOre.indexOf(highestOre);
+  const bars = win.map((h,k) => {
     const idx = nIdx + k;
-    const hourOfDay = (baseHour + k) % 24;
-    const a0 = hourOfDay*15 + WEDGE_GAP/2, a1 = a0 + wedgeSpan;
-    if(idx < state.hourly.length){
-      const sel = state.selectedBar === idx ? ' sel' : '';
-      const col = wedgeCol(state.hourly[idx].price);
-      wedges += `<path d="${wedgeD(a0,a1,58,86)}" fill="none" stroke="${col}" stroke-width="${(WEDGE_STROKE*2.6).toFixed(2)}" stroke-linejoin="round" opacity="0.35" filter="blur(3px)"/>`;
-      wedges += `<path class="wedge${sel}" data-i="${idx}" d="${wedgeD(a0,a1,58,86)}" fill="${col}" stroke="${col}" stroke-width="${WEDGE_STROKE}" stroke-linejoin="round" filter="url(#ringGlow)"/>`;
-    }else{
-      wedges += `<path d="${wedgeD(a0,a1,58,86)}" fill="#232329" stroke="#232329" stroke-width="${WEDGE_STROKE}" stroke-linejoin="round"/>`;
-    }
-  }
-
-  const nd = new Date();
-  const handA = (nd.getHours() + nd.getMinutes()/60) * 15;
-  const [hx,hy] = arcP(54, handA);
-
-  const curCls = cls(state.hourly[nIdx].price);
-  /* navets färg ska vara EXAKT samma nyans som ringsektionen pilen pekar på,
-     inte bara samma kategori - så nowHsl/nowCol återanvänder priceHsl direkt.
-     Textfärgen väljer mörk/ljus efter hur ljus bakgrunden är, annars blir
-     t.ex. mörkröd text på ett mörkrött nav helt oläsbar. */
-  const nowHsl = priceHsl(Math.round(state.hourly[nIdx].price*100));
-  const nowCol = hslStr(nowHsl);
-  const hubTextCol = nowHsl.l < 45 ? '#f2efe9' : '#121214';
-  let till = null;
-  for(let k=1;k<win.length;k++){ if(cls(win[k].price)==='cheap'){ till = k; break; } }
-  const hubSub = curCls==='cheap' ? L().hubOkNow
-    : (till ? L().hubGreenIn(till) : L().hubNoGreen);
+    const ore = winOre[k];
+    const pct = Math.max(6, Math.min(100, Math.round((ore / barMax) * 100)));
+    const col = zoneColor(ore);
+    const barCls = [k === 0 ? 'now' : '', state.selectedBar === idx ? 'sel' : ''].filter(Boolean).join(' ');
+    const flag = (k === mi || k === ma) ? `<b class="ew-flag" style="color:${col}">${ore}</b>` : '';
+    return `<span class="ew-bar${barCls ? ' '+barCls : ''}" data-i="${idx}" style="height:${pct}%;background:${col}">${flag}</span>`;
+  }).join('');
 
   /* dagens vänliga kommentar: bygger på det FAKTISKA prisläget (fasta
      öre-klasser), inte den relativa ringfärgen ovan - annars skulle en dyr
@@ -1035,12 +990,6 @@ function render(){
            ${taxNoteHtml}`
       );
 
-  /* 00/06/12/18 rakt upp/höger/ner/vänster som en klocka, inte mitt i sektionerna */
-  const ticks = [0,6,12,18].map(t=>{
-    const [tx,ty] = arcP(94, t*15);
-    return `<text x="${tx.toFixed(1)}" y="${(ty+3).toFixed(1)}" text-anchor="middle" font-size="9" fill="#9a968f">${String(t).padStart(2,'0')}</text>`;
-  }).join('');
-
   const selInfo = state.selectedBar != null && state.hourly[state.selectedBar]
     ? (()=>{ const h = state.hourly[state.selectedBar];
         return `<span>${whenLabel(h.start)}–${fmtClock(h.end)}</span>
@@ -1055,40 +1004,26 @@ function render(){
   const warnBanner = state.hourly[nIdx].price*100 > 170
     ? `<div class="banner warn">${L().highPriceWarn(fmtOre(state.hourly[nIdx].price))}</div>` : '';
 
+  const barFootNote = (lowestOre === highestOre)
+    ? '' // alla timmar exakt samma pris (sällsynt) - ingen billigast/dyrast-rad att visa
+    : `<div class="ew-foot">${L().cheapestFoot(whenLabel(win[mi].start), winOre[mi])}</div>
+       <div class="ew-foot">${L().dearestFoot(whenLabel(win[ma].start), winOre[ma])}</div>`;
+
   const priceWidget = `
     <section class="panel">
       <div class="panel-head">
-        <h2>${L().hoursHeading}</h2>
+        <h2>ELPRIS &middot; ${state.settings.zone}</h2>
         <span class="updated num">${L().updated(fmtClock(new Date(state.lastFetch)))}</span>
       </div>
-      <div class="dial-wrap">
-        <svg id="dialSvg" viewBox="0 0 200 200" width="250" role="img" aria-label="${L().hoursHeading}">
-          <defs>
-            <filter id="ringGlow" x="-60%" y="-60%" width="220%" height="220%">
-              <feGaussianBlur stdDeviation="14" result="b"/>
-              <feColorMatrix in="b" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.5 0" result="b2"/>
-              <feMerge><feMergeNode in="b2"/><feMergeNode in="SourceGraphic"/></feMerge>
-            </filter>
-          </defs>
-          <g class="ring">${wedges}</g>
-          <line x1="100" y1="100" x2="${hx.toFixed(1)}" y2="${hy.toFixed(1)}" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
-          <g class="hub">
-            <circle cx="100" cy="100" r="33" fill="${nowCol}"/>
-            <text x="100" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="${hubTextCol}">${DNAME[curCls]}</text>
-            <text x="100" y="103" text-anchor="middle" font-size="13" font-weight="700" fill="${hubTextCol}" class="num">${(state.hourly[nIdx].price*100).toLocaleString(localeTag(),{maximumFractionDigits:0})} öre</text>
-            <text x="100" y="115" text-anchor="middle" font-size="8" fill="${hubTextCol}">${hubSub}</text>
-          </g>
-          ${ticks}
-        </svg>
+      <div class="ew-top">
+        <span class="ew-num num" style="color:${zoneColor(nowOre)}">${nowOre}</span>
+        <span class="ew-unit">öre/kWh</span>
       </div>
+      <div class="ew-bars" id="ewBars">${bars}</div>
+      ${barFootNote}
+      <div class="tax-note-line">${L().taxNoteShort}</div>
       ${warnBanner}
       <div class="tl-info" id="tlInfo">${selInfo}</div>
-      <div class="legend">
-        <span><i style="background:${hslStr(priceHsl(0))}"></i>0–50 öre</span>
-        <span><i style="background:${hslStr(priceHsl(50))}"></i>51–129 öre</span>
-        <span><i style="background:${hslStr(priceHsl(130))}"></i>130+ öre</span>
-        <span class="tax-note">${L().taxNoteShort}</span>
-      </div>
       ${banner}
     </section>`;
 
@@ -1117,15 +1052,11 @@ function render(){
   /* händelser */
   const addBtn = $('#addAppliancesBtn');
   if(addBtn) addBtn.addEventListener('click', showSettings);
-  $('#dialSvg').addEventListener('click', e=>{
-    /* trafikljuset i mitten = tillbaka till nu */
-    if(e.target.closest('.hub')){
-      if(state.selectedBar != null){ state.selectedBar = null; render(); }
-      return;
-    }
-    const p = e.target.closest('.wedge');
+  $('#ewBars').addEventListener('click', e=>{
+    const p = e.target.closest('.ew-bar');
     if(!p) return;
-    state.selectedBar = state.selectedBar === +p.dataset.i ? null : +p.dataset.i;
+    const idx = +p.dataset.i;
+    state.selectedBar = state.selectedBar === idx ? null : idx;
     render();
   });
 }
