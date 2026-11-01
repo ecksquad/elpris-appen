@@ -417,10 +417,12 @@ const LANG_NAMES = {sv:'Svenska', en:'English'};
 /* genomsnittlig nätavgift + energiskatt (exkl. moms), uppskattat öre/kWh per
    elområde - SE1/SE2 har till stor del reducerad energiskatt (norra Sverige),
    SE3/SE4 full skattesats + i regel högre nätavgift. Rena riktvärden, inte
-   knutna till en specifik nätägare. Notera: dessa är FLATA avgifter som
-   tillkommer oavsett när man kör igång, så de påverkar inte SJÄLVA
-   besparingen mellan två timmar - bara momsen (25%) gör det. Visas som
-   kontext i besparingsrutan, inte inräknade i sparbeloppet. */
+   knutna till en specifik nätägare. Används av fullPrice() nedan för att
+   räkna ut apparaternas FAKTISKA kr-kostnad (nätavgift+energiskatt, sedan
+   moms på alltihop) - eftersom det är en flat avgift per kWh påverkar den
+   aldrig VILKEN timme som är billigast, bara det absoluta kronbeloppet.
+   Ringens öre/kWh-visning (priceHsl m.fl. längre ner) fortsätter visa rent
+   spotpris, kalibrerat mot verklig spotprisdata. */
 const ZONE_TAX_ORE = { SE1: 35, SE2: 45, SE3: 68, SE4: 73 };
 
 /* ALLA apparater matar nu in en genomsnittlig effekt (kW) precis som elbil
@@ -525,9 +527,10 @@ const T = {
     runAt:(lead,tid)=>`Kör ${lead} vid ${tid}.`,
     oneAppliance:'din valda apparat', nApps:n=>`dina ${n} valda apparater`,
     recTime:'rekommenderad tid', recTimes:'de rekommenderade tiderna',
-    taxNote:(zone,ore)=>`Inkl. moms. Nätavgift och energiskatt i ${zone} (snitt ca ${ore} öre/kWh) tillkommer på hela din räkning, oavsett tid på dygnet.`,
+    taxNote:(zone,ore)=>`Beloppen ovan inkluderar moms samt ${zone}s nätavgift och energiskatt (snitt ca ${ore} öre/kWh).`,
     hungerGames:' Känns besparingen futtig? Det är för att elpriset just nu nästan alltid är lågt och jämnt i din zon. Testa att byta till SE3 eller SE4 i inställningarna och se hur mycket appen kan spara där – de är typ Distrikt 12 i Hunger Games, längst från den billiga vattenkraften i norr!',
     taxNoteShort:'exkl. skatter och avgifter',
+    taxNoteIncl:'inkl. skatter och avgifter',
     noWindow:'Inget fönster i vald tid',
     runNow:'Kör igång', nowWord:'nu', totalPriceLabel:'Totalt pris',
     waitUntil:'Vänta till', andSave:'och spara',
@@ -610,9 +613,10 @@ const T = {
     runAt:(lead,tid)=>`Run ${lead} at ${tid}.`,
     oneAppliance:'your chosen appliance', nApps:n=>`your ${n} chosen appliances`,
     recTime:'the recommended time', recTimes:'the recommended times',
-    taxNote:(zone,ore)=>`Incl. VAT. Grid fees and energy tax in ${zone} (avg. approx. ${ore} öre/kWh) apply to your whole bill regardless of time of day.`,
+    taxNote:(zone,ore)=>`The amounts above include VAT as well as ${zone}'s grid fee and energy tax (avg. approx. ${ore} öre/kWh).`,
     hungerGames:' Feels like a puny saving? That’s because electricity is almost always cheap and flat in your zone. Try switching to SE3 or SE4 in settings to see how much the app can save there – they’re basically District 12 in the Hunger Games, farthest from the cheap hydropower up north!',
     taxNoteShort:'excl. taxes and fees',
+    taxNoteIncl:'incl. taxes and fees',
     noWindow:'No window in the chosen time',
     runNow:'Run it', nowWord:'now', totalPriceLabel:'Total price',
     waitUntil:'Wait until', andSave:'and save',
@@ -745,6 +749,17 @@ function nowIndex(){
   return state.hourly.findIndex(h => h.start.getTime() <= now && now < h.end.getTime());
 }
 
+/* "landad" kr/kWh-kostnad: spotpriset plus zonens flata nätavgift+energiskatt
+   (ZONE_TAX_ORE ovan), sedan moms (25%) på alltihop - samma formel som
+   Stormbull-appens laddpanel redan använder för elbilen. Det är den kostnad
+   användaren FAKTISKT betalar, så det är den som ligger till grund för
+   apparaternas kr-belopp (costAt/costStartingAt nedan) - till skillnad från
+   ringens öre/kWh-visning, som medvetet stannar vid rent spotpris. */
+function fullPrice(spot){
+  const zoneOre = ZONE_TAX_ORE[state.settings.zone] || ZONE_TAX_ORE.SE3;
+  return (spot + zoneOre/100) * 1.25;
+}
+
 /* billigaste sammanhängande fönster inom kommande 36 h,
    med hänsyn till tillåten starttid (from–to, kan gå över midnatt) */
 function bestWindow(app){
@@ -764,7 +779,7 @@ function bestWindow(app){
 
   const costAt = i => {
     let c = 0;
-    for(let k=0;k<D;k++) c += hours[i+k].price * perHour;
+    for(let k=0;k<D;k++) c += fullPrice(hours[i+k].price) * perHour;
     return c;
   };
 
@@ -790,7 +805,7 @@ function costStartingAt(app, i){
   if(i == null || i < 0 || i + D > hours.length) return null;
   const perHour = app.kwh / D;
   let c = 0;
-  for(let k=0;k<D;k++) c += hours[i+k].price * perHour;
+  for(let k=0;k<D;k++) c += fullPrice(hours[i+k].price) * perHour;
   return c;
 }
 
@@ -979,14 +994,12 @@ function render(){
   });
   const totalLead = onApps.length === 1 ? L().oneAppliance : L().nApps(onApps.length);
   const totalTid  = onApps.length === 1 ? L().recTime : L().recTimes;
-  /* momsen (25%) läggs på sparbeloppet - det är en verklig effekt eftersom
-     moms tas ut på HELA elpriset, alltså även på det du sparar. Nätavgift
-     och energiskatt är däremot flata avgifter som tillkommer oavsett när
-     man kör igång, så de ändrar inte sparbeloppet i sig - zonens snittnivå
-     visas bara som information i texten under. */
+  /* w.worst.cost/w.best.cost kommer nu från fullPrice() (nätavgift +
+     energiskatt + moms redan inräknat), så totalSaving ÄR redan den
+     faktiska besparingen i kronor - inget extra momspåslag behövs här. */
   const zoneName = L().zoneNames[state.settings.zone];
   const zoneOre = ZONE_TAX_ORE[state.settings.zone] || ZONE_TAX_ORE.SE3;
-  const totalSavingIncl = totalSaving * 1.25;
+  const totalSavingIncl = totalSaving;
   /* skämtsam släng i slutet av skattenoten - triggas av dagens FAKTISKA
      prisspridning, inte av vilken zon man valt. Verifierat mot riktig data
      från elprisetjustnu.se 2026-07-18: SE1/SE2 låg ~8 öre snitt / ~23-25 öre
@@ -1148,7 +1161,7 @@ function renderCard(id, a, nIdx, w){
      rad - annars syns aldrig vad det faktiskt kostar att vänta, bara
      skillnaden. */
   const sub = isNow
-    ? `<div>${L().fineprint(D, a.kwh.toLocaleString(localeTag()), L().taxNoteShort)}</div>`
+    ? `<div>${L().fineprint(D, a.kwh.toLocaleString(localeTag()), L().taxNoteIncl)}</div>`
     : `<div>${L().totalCostNowLabel(`${fmtClock(state.hourly[nIdx].start)}–${fmtClock(endNow)}`)} <b class="now-cost num">${fmtKr(nowCost)}</b></div>
        <div>${L().totalCostAtLabel(whenLabel(startH.start), `${fmtClock(startH.start)}–${fmtClock(endBest)}`)} <b class="wait-cost num">${fmtKr(best.cost)}</b></div>`;
 
